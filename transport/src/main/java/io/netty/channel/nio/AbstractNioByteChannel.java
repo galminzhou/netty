@@ -38,6 +38,13 @@ import java.nio.channels.SelectionKey;
 import static io.netty.channel.internal.ChannelUtils.WRITE_STATUS_SNDBUF_FULL;
 
 /**
+ * 在Channel三层结构中是第二个抽象层，主要实现read和write的框架；
+ * 读写 都是 byte array；
+ * 此类定义了三个抽象方法来实现真正的读写操作：
+ *  1) {@link this#doReadBytes(ByteBuf)}
+ *  2) {@link this#doWriteBytes(ByteBuf)}
+ *  3) {@link this#doWriteFileRegion(FileRegion)}
+ *
  * {@link AbstractNioChannel} base class for {@link Channel}s that operate on bytes.
  */
 public abstract class AbstractNioByteChannel extends AbstractNioChannel {
@@ -63,6 +70,8 @@ public abstract class AbstractNioByteChannel extends AbstractNioChannel {
      * @param ch                the underlying {@link SelectableChannel} on which it operates
      */
     protected AbstractNioByteChannel(Channel parent, SelectableChannel ch) {
+        // 客户端关心的是 OP_READ事件，等待读取服务端返回数据；
+        // SelectionKey.OP_READ: 有可读时，channel中数据读完，远程的另一端被关闭，有一个错误的pending都会触发OP_READ事件
         super(parent, ch, SelectionKey.OP_READ);
     }
 

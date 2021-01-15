@@ -101,6 +101,9 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     /**
+     * 设置Channel的实现类的Class（tcp-client，tcp-server，udp-socket）；
+     * 此处不创建Channel的实例，实例的创建使用Java反射{@link io.netty.channel.ChannelFactory#newChannel()}  工厂模式}方法；
+     *
      * The {@link Class} which is used to create {@link Channel} instances from.
      * You either use this or {@link #channelFactory(io.netty.channel.ChannelFactory)} if your
      * {@link Channel} implementation has no no-args constructor.

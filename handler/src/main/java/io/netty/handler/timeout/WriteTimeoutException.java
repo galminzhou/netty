@@ -18,6 +18,9 @@ package io.netty.handler.timeout;
 import io.netty.util.internal.PlatformDependent;
 
 /**
+ * 每次写，到写完结束超过设定时间就抛WriteTimeoutException；
+ * WriteTimeoutException 可以通过覆盖 ChannelHandler 的 exceptionCaught(…) 方法检测到。
+ *
  * A {@link TimeoutException} raised by {@link WriteTimeoutHandler} when a write operation
  * cannot finish in a certain period of time.
  */

@@ -24,6 +24,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 
 /**
+ * 从 ReadableByteChannel 中一块一块的转移内容，Big I/O 处理类
+ *
  * A {@link ChunkedInput} that fetches data from a {@link ReadableByteChannel}
  * chunk by chunk.  Please note that the {@link ReadableByteChannel} must
  * operate in blocking mode.  Non-blocking mode channels are not supported.

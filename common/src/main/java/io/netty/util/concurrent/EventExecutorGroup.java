@@ -22,6 +22,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * 用来执行ChannelHandlerContext和ChannelHandler中回调方法的线程；
+ * 在开发人员向ChannelPipeline中注册一个ChannelHandler时，
+ * 若指定了一个EventExecutorGroup，那么它和它对应的ChannelHandlerContext都会在指定的EventExecutorGroup执行；
+ * 否则，在Channel的EventLoopGroup中执行。
+ *
+ *
  * The {@link EventExecutorGroup} is responsible for providing the {@link EventExecutor}'s to use
  * via its {@link #next()} method. Besides this, it is also responsible for handling their
  * life-cycle and allows shutting them down in a global fashion.

@@ -16,6 +16,22 @@
 package io.netty.buffer;
 
 /**
+ * 为了减少分配和释放内存的开销，Netty 通过支持池类 ByteBufAllocator，可用于分配的任何 ByteBuf 类型的实例。
+ *
+ * 是否使用池是由应用程序决定的，通过一些方法接受整型参数允许用户指定 ByteBuf 的初始和最大容量值。
+ *
+ * 得到一个 ByteBufAllocator 的引用很简单：
+ *      1) 在理论上，每 Channel 可具有不同的 ByteBufAllocator
+ *         Channel channel = ...;
+ *         ByteBufAllocator allocator = channel.alloc();
+ *      2) 通过绑定到的 ChannelHandler 的 ChannelHandlerContext
+ *         ChannelHandlerContext ctx = ...;
+ *         ByteBufAllocator allocator2 = ctx.alloc();
+ *
+ * ByteBufAllocator 两个主要实现类：
+ * {@link PooledByteBufAllocator 池化类，采用一种 JeMalloc 的方法来分配内存}
+ * {@link UnpooledByteBufAllocator 非池化类，主要使用 Unpooled 工具类创建实例}
+ *
  * Implementations are responsible to allocate buffers. Implementations of this interface are expected to be
  * thread-safe.
  */

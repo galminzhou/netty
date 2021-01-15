@@ -16,6 +16,18 @@
 package io.netty.util;
 
 /**
+ * 引用计数是一门优化内存使用的技术，
+ * 如果一个对象所持有的资源不再被任何对象引用的时候，将会释放这部分的资源，
+ * ByteBuf 和 ByteBufHolder 都实现了 ReferenceCounted 技术。
+ *
+ * 一个实现ReferenceCounted接口的实例一般对一个存活的对象开始计数为1，
+ * 只要对该对象的引用的个数不是0的情况下，这个对象所持有的资源肯定不会被释放，当一个存活的对象引用的个数降至0，那么这个实例将会被释放。
+ * 注意：释放的确切语义可能是特定于实现的，引用计数技术为缓冲区池化提供了基础。
+ *
+ * 凡是实现该接口的对象必须被显示释放。
+ * 当实例化的时候，内部有一个变量用于标记该对象被引用的次数，初始值为1。
+ * 调用retain()则该引用计数增加1，调用release减1。当该引用计数减少为0的时候，这个对象会被释放掉，此时若要再次试图使用该对象，会抛出异常。
+ *
  * A reference-counted object that requires explicit deallocation.
  * <p>
  * When a new {@link ReferenceCounted} is instantiated, it starts with the reference count of {@code 1}.
@@ -31,11 +43,14 @@ package io.netty.util;
  */
 public interface ReferenceCounted {
     /**
+     * 返回当前对象被引用的计数
+     *
      * Returns the reference count of this object.  If {@code 0}, it means this object has been deallocated.
      */
     int refCnt();
 
     /**
+     * 引用计数 +1
      * Increases the reference count by {@code 1}.
      */
     ReferenceCounted retain();
@@ -60,6 +75,7 @@ public interface ReferenceCounted {
     ReferenceCounted touch(Object hint);
 
     /**
+     * 引用计数 -1
      * Decreases the reference count by {@code 1} and deallocates this object if the reference count reaches at
      * {@code 0}.
      *
@@ -68,6 +84,8 @@ public interface ReferenceCounted {
     boolean release();
 
     /**
+     * 
+     *
      * Decreases the reference count by the specified {@code decrement} and deallocates this object if the reference
      * count reaches at {@code 0}.
      *

@@ -30,6 +30,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
+ * 在Channel三层结构中是第二个抽象层，主要实现read和write的框架；
+ * 读 - 将 byte array 转换成结构化的对象；
+ * 写 - 将 结构化的对象序列化成 byte array；
+ * 此类定义了两个抽象方法，来实现真正的结构化数据类型的读写：
+ *  1) {@link this#doReadMessages(List)}
+ *  2) {@link this#doWriteMessage(Object, ChannelOutboundBuffer)}
+ *
  * {@link AbstractNioChannel} base class for {@link Channel}s that operate on messages.
  */
 public abstract class AbstractNioMessageChannel extends AbstractNioChannel {

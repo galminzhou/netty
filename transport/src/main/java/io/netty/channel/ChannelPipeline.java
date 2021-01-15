@@ -30,6 +30,62 @@ import java.util.NoSuchElementException;
 
 
 /**
+ * [SSSSS-核心类]
+ * 一个ChannelPipeline实例属于一个Channel实例，它是事件传播的管道，从Channel实例接收Inbound事件，把Outbound事件交给Channel。
+ *
+ * 用于保存处理过程需要用到的ChannelHandler和ChannelHandlerContext；
+ *
+ * ChannelHandlerContext
+ * 一个 ChannelHandlerContext 使 ChannelHandler 与 ChannelPipeline 和 其他处理程序交互。
+ * 一个处理程序可以通知下一个 ChannelPipeline 中的 ChannelHandler 甚至动态修改 ChannelPipeline 的归属。
+ *
+ * ChannelPipeline 实现了常用的 Intercepting Filter（拦截过滤器）设计模式。
+ *
+ * ----------------------------------- Pipeline 双向链表数据结构 -----------------------------------
+ * 每个Channel内部都有一个Pipeline，pipeline由多个handler组成，
+ * handler之间顺序很非常重要的，因为 I/O事件将按照顺序顺次经过 pipeline上的 各个handler；
+ * 这样每个handler都只需要关注自己的单个事件，由多个handler组合来完成一些复杂的逻辑。
+ *
+ * 在Netty中 pipeline是一个双向链表的数据结构，并由ChannelPipeline负责维护；
+ * ChannelPipeline的默认实现中，链表默认添加了Head和Tail节点，
+ *  1) Head节点 同时实现{@link ChannelInboundHandler 入站接口} 和 {@link ChannelOutboundHandler 出站接口}，
+ *     Head节点 比较特殊，它会最终将事件叫个Channel处理。
+ *  2) Tail节点 实现了{@link ChannelInboundHandler 入站接口}，使用Channel触发的 inbound事件会首先在Tail节点处理；
+ *
+ * ----------------------------------- Inbound事件 和 Outbound操作 -----------------------------------
+ * Inbound events 和 Outbound operations，即Inbound是事件，Outbound是操作（直接导致的事件）:
+ * 1)  Inbound handlers are supposed to handle inbound events.
+ *     Events are triggered by external stimuli such as data received from a socket.
+ * 2)  Outbound handlers are supposed to intercept the operations issued by your application.
+ *
+ * Netty 根据事件触发的源头指定Inbound（ChannelInboundHandler） 和 Outbound（ChannelOutboundHandler）
+ *  1) 由外部触发的事件是Inbound事件，外部是指应用程序之外，因此Inbound事件就是并非因为应用程序主动请求做了什么而触发的事件；
+ *     例如：某个socket上由数据读取进来了（此处注意"读完了"这个事件，而不是"读取"这个操作），
+ *     在比如某个socket连接了上来并被注册到了某个eventLoop；
+ *     Inbound事件的详细列表：{@link ChannelInboundHandler}
+ *      channelActive/channelInactive
+ *      channelInactive
+ *      channelRead
+ *      channelReadComplete
+ *      channelRegistered / channelUnregistered
+ *      channelWritabilityChanged
+ *      exceptionCaught
+ *      userEventTriggered
+ *  2) 而Outbound事件是由应用程序主动请求而触发的事件，可以认为 Outbound是指某个应用程序发起了某个操作；
+ *     例如：向socket写入数据，再比如从socket读取数据（此处注意"读取"是指这个操作请求，而非"读完了"这个事件）
+ *     这也就是解释了为什么 ChannelOutboundHander会有read方法；
+ *     Outbound事件列表：{@link ChannelOutboundHandler}
+ *      bind
+ *      close
+ *      connect
+ *      deregister
+ *      disconnect
+ *      flush
+ *      read
+ *      write
+ *     需要注意，一旦应用程序发出以上操作请求，ChannelOutboundHandler中对应的方法就会被调用，
+ *     而不是等到操作完毕之后才被调用，一个handler在处理时甚至可以将请求拦截而不再传递给后续的handler，使得真正的操作并不会被执行。
+ *
  * A list of {@link ChannelHandler}s which handles or intercepts inbound events and outbound operations of a
  * {@link Channel}.  {@link ChannelPipeline} implements an advanced form of the
  * <a href="https://www.oracle.com/technetwork/java/interceptingfilter-142169.html">Intercepting Filter</a> pattern

@@ -40,6 +40,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * 在Channel三层结构中是第三层即实现层：实现了 TCP-Server；
+ *
  * A {@link io.netty.channel.socket.ServerSocketChannel} implementation which uses
  * NIO selector based implementation to accept new connections.
  */
@@ -47,6 +49,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
                              implements io.netty.channel.socket.ServerSocketChannel {
 
     private static final ChannelMetadata METADATA = new ChannelMetadata(false, 16);
+    /** JDK SelectorProvider, 此实例用于创建JDK的ServerSocketChannel实例（provider.openServerSocketChannel()） */
     private static final SelectorProvider DEFAULT_SELECTOR_PROVIDER = SelectorProvider.provider();
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(NioServerSocketChannel.class);
@@ -86,6 +89,8 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
      * Create a new instance using the given {@link ServerSocketChannel}.
      */
     public NioServerSocketChannel(ServerSocketChannel channel) {
+        // ServerSocketChannel 只关注 OP_ACCEPT 事件
+        // OP_ACCEPT: 接收连接继续事件，表示服务器监听到了客户连接，服务器可以接收此连接了；
         super(null, channel, SelectionKey.OP_ACCEPT);
         config = new NioServerSocketChannelConfig(this, javaChannel().socket());
     }

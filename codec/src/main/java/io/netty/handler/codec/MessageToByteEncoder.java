@@ -95,28 +95,44 @@ public abstract class MessageToByteEncoder<I> extends ChannelOutboundHandlerAdap
         return matcher.match(msg);
     }
 
+    /**
+     * 1) 匹配类型
+     * 2) 分配内存
+     * 3) 编码实现
+     * 4) 释放对象
+     */
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         ByteBuf buf = null;
         try {
+            // 检查消息类型是否匹配，
+            // 若匹配则申请一个缓冲区，然后调用 encode() 进行编码；
+            //     编码结束则调用 release() 尝试释放消息，失败则往前写一个缓冲区，把申请的缓冲区释放了。
+            // 不是则直接传递到下一个ChannelPipeline
             if (acceptOutboundMessage(msg)) {
                 @SuppressWarnings("unchecked")
                 I cast = (I) msg;
+                // 如果优先是直接缓冲区，就申请直接缓冲区，否则就是堆内缓冲区
                 buf = allocateBuffer(ctx, cast, preferDirect);
                 try {
+                    // 编码实现（钩子方法，子类实现）
                     encode(ctx, cast, buf);
                 } finally {
+                    // 尝试释放对象（类型：I），将对象的引用计数值 -1，若对象的引用计数值是0，则释放对象；
                     ReferenceCountUtil.release(cast);
                 }
 
+                // 若buf已经成功写入数据，则将数据传入到下一个节点
                 if (buf.isReadable()) {
                     ctx.write(buf, promise);
                 } else {
+                    // 失败，则释放buf，写入一个空数据传入到下一个节点
                     buf.release();
                     ctx.write(Unpooled.EMPTY_BUFFER, promise);
                 }
                 buf = null;
             } else {
+                // 进入下一个ChannelPipeline
                 ctx.write(msg, promise);
             }
         } catch (EncoderException e) {
@@ -124,6 +140,7 @@ public abstract class MessageToByteEncoder<I> extends ChannelOutboundHandlerAdap
         } catch (Throwable e) {
             throw new EncoderException(e);
         } finally {
+            // 当buf在pipeline已处理之后，释放对象
             if (buf != null) {
                 buf.release();
             }
@@ -144,6 +161,10 @@ public abstract class MessageToByteEncoder<I> extends ChannelOutboundHandlerAdap
     }
 
     /**
+     * 钩子方法，由子类实现处理逻辑；
+     * 它被调用时将会传入要被此类编码为ByteBuf的（类型是 I 的）出站消息；
+     * 此 ByteBuf 随后将会被转发给 ChannelPipeline 中的下一个 ChannelOutboundHandler。
+     *
      * Encode a message into a {@link ByteBuf}. This method will be called for each written message that can be handled
      * by this encoder.
      *

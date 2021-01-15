@@ -23,6 +23,9 @@ import java.nio.channels.WritableByteChannel;
 import java.util.Map;
 
 /**
+ * 每个 Channel 都会分配一个 ChannelPipeline 和ChannelConfig。
+ * ChannelConfig 负责设置并存储 Channel 的配置，并允许在运行期间更新它们。
+ *
  * A set of configuration properties of a {@link Channel}.
  * <p>
  * Please down-cast to more specific configuration type such as

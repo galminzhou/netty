@@ -23,6 +23,8 @@ import io.netty.channel.ChannelHandlerContext;
 import java.util.List;
 
 /**
+ * 提取固定长度
+ *
  * A decoder that splits the received {@link ByteBuf}s by the fixed number
  * of bytes. For example, if you received the following four fragmented packets:
  * <pre>

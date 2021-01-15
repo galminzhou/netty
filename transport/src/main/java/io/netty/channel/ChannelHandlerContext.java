@@ -25,6 +25,24 @@ import io.netty.util.concurrent.EventExecutor;
 import java.nio.channels.Channels;
 
 /**
+ * 用于传输业务数据
+ *
+ * 一个双向链表的数据结构，它的多个实例组成了一个双向链表，并由ChannelPipeline负责维护；
+ * 在ChannelPipeline的默认实现中，链表默认添加了Head和Tail节点，
+ * 1) Head节点 同时实现{@link ChannelInboundHandler 入站接口} 和 {@link ChannelOutboundHandler 出站接口}，
+ *    Head节点 比较特殊，它会最终将事件叫个Channel处理。
+ * 2) Tail节点 实现了{@link ChannelInboundHandler 入站接口}，使用Channel触发的 inbound事件会首先在Tail节点处理；
+ *
+ * 接口 ChannelHandlerContext 代表 ChannelHandler 和ChannelPipeline 之间的关联；
+ * 在ChannelHandler 添加到 ChannelPipeline 时会创建一个实例，
+ * 就是接口 ChannelHandlerContext，它代表了 ChannelHandler 和ChannelPipeline 之间的关联。
+ * 接口ChannelHandlerContext 主要是对通过同一个 ChannelPipeline 关联的 ChannelHandler 之间的交互进行管理。
+ *
+ * 注意事项：
+ *  1）ChannelHandlerContext 与 ChannelHandler 的关联从不改变，所以缓存它的引用是安全的；
+ *  2）ChannelHandlerContext 所包含的事件流比其他类中同样的方法都要短，利用此点可以尽可能高地提高性能。
+ *
+ *
  * Enables a {@link ChannelHandler} to interact with its {@link ChannelPipeline}
  * and other handlers. Among other things a handler can notify the next {@link ChannelHandler} in the
  * {@link ChannelPipeline} as well as modify the {@link ChannelPipeline} it belongs to dynamically.

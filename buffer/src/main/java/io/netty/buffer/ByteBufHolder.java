@@ -18,6 +18,12 @@ package io.netty.buffer;
 import io.netty.util.ReferenceCounted;
 
 /**
+ * ByteBufHolder是一个ByteBuf的容器，提供了一些扩展API用于复制，如：
+ *      1) copy：对当前ByteBufHolder深拷贝，包括一个其所包含的ByteBuf的非共享拷贝；
+ *      2) duplicate：对当前ByteBufHolder浅拷贝，包括一个其所包含的ByteBuf的共享拷贝；
+ *
+ * 接口目前唯一的一个公开实现是：{@link DefaultByteBufHolder}
+ *
  * A packet which is send or receive.
  */
 public interface ByteBufHolder extends ReferenceCounted {

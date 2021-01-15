@@ -54,6 +54,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * 在Channel三层结构中是第三层即实现层：实现了 UDP-Socket；
+ *
  * An NIO datagram {@link Channel} that sends and receives an
  * {@link AddressedEnvelope AddressedEnvelope<ByteBuf, SocketAddress>}.
  *

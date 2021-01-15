@@ -24,6 +24,9 @@ import java.net.SocketAddress;
 public interface ChannelOutboundInvoker {
 
     /**
+     * 让channel绑定的指定的本地地址(localAddress)上。
+     * 此方法会触发{@link ChannelOutboundHandler#bind(ChannelHandlerContext, SocketAddress, ChannelPromise)}方法的调用。
+     *
      * Request to bind to the given {@link SocketAddress} and notify the {@link ChannelFuture} once the operation
      * completes, either because the operation was successful or because of an error.
      * <p>
@@ -62,6 +65,9 @@ public interface ChannelOutboundInvoker {
     ChannelFuture connect(SocketAddress remoteAddress, SocketAddress localAddress);
 
     /**
+     * 断开连接,
+     * 此方法会触发{@link ChannelOutboundHandler#disconnect(ChannelHandlerContext, ChannelPromise)}的调用。
+     *
      * Request to disconnect from the remote peer and notify the {@link ChannelFuture} once the operation completes,
      * either because the operation was successful or because of an error.
      * <p>
@@ -87,6 +93,10 @@ public interface ChannelOutboundInvoker {
     ChannelFuture close();
 
     /**
+     * 从EventLoop中注销当前channel,
+     * 此方法会触发{@link ChannelOutboundHandler#deregister(ChannelHandlerContext, ChannelPromise)}的调用。
+     *
+     *
      * Request to deregister from the previous assigned {@link EventExecutor} and notify the
      * {@link ChannelFuture} once the operation completes, either because the operation was successful or because of
      * an error.
@@ -100,6 +110,9 @@ public interface ChannelOutboundInvoker {
     ChannelFuture deregister();
 
     /**
+     * 让channel绑定的指定的本地地址(localAddress)上。
+     * 此方法会触发{@link ChannelOutboundHandler#bind(ChannelHandlerContext, SocketAddress, ChannelPromise)}方法的调用。
+     *
      * Request to bind to the given {@link SocketAddress} and notify the {@link ChannelFuture} once the operation
      * completes, either because the operation was successful or because of an error.
      *
@@ -113,6 +126,9 @@ public interface ChannelOutboundInvoker {
     ChannelFuture bind(SocketAddress localAddress, ChannelPromise promise);
 
     /**
+     * 连接到远程地址(remoteAddress),
+     * 此方法会触发{@link ChannelOutboundHandler#connect(ChannelHandlerContext, SocketAddress, SocketAddress, ChannelPromise)}方法的调用
+     *
      * Request to connect to the given {@link SocketAddress} and notify the {@link ChannelFuture} once the operation
      * completes, either because the operation was successful or because of an error.
      *
@@ -145,6 +161,9 @@ public interface ChannelOutboundInvoker {
     ChannelFuture connect(SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise);
 
     /**
+     * 断开连接,
+     * 此方法会触发{@link ChannelOutboundHandler#disconnect(ChannelHandlerContext, ChannelPromise)}的调用。
+     *
      * Request to disconnect from the remote peer and notify the {@link ChannelFuture} once the operation completes,
      * either because the operation was successful or because of an error.
      *
@@ -158,6 +177,9 @@ public interface ChannelOutboundInvoker {
     ChannelFuture disconnect(ChannelPromise promise);
 
     /**
+     * 关闭channel.
+     * 此方法会触发{@link ChannelOutboundHandler#close(ChannelHandlerContext, ChannelPromise)}的调用。
+     *
      * Request to close the {@link Channel} and notify the {@link ChannelFuture} once the operation completes,
      * either because the operation was successful or because of
      * an error.
@@ -201,6 +223,9 @@ public interface ChannelOutboundInvoker {
     ChannelOutboundInvoker read();
 
     /**
+     * 向channel写入数据，这个操作不会导致真正写操作，只会把数据追加到输出缓冲区中。
+     * 它会触发{@link ChannelOutboundHandler#write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise)}调用。
+     *
      * Request to write a message via this {@link ChannelHandlerContext} through the {@link ChannelPipeline}.
      * This method will not request to actual flush, so be sure to call {@link #flush()}
      * once you want to request to flush all pending data to the actual transport.
@@ -215,16 +240,22 @@ public interface ChannelOutboundInvoker {
     ChannelFuture write(Object msg, ChannelPromise promise);
 
     /**
+     * 对输出缓冲区中的数据执行真正的写操作，调用这个方法后连接的另一端才能收到write的数据，
+     * 它会触发{@link ChannelOutboundHandler#flush(ChannelHandlerContext ctx)}调用。
+     *
      * Request to flush all pending messages via this ChannelOutboundInvoker.
      */
     ChannelOutboundInvoker flush();
 
     /**
+     * 效果和先调用write然后调用flush一样。
+     *
      * Shortcut for call {@link #write(Object, ChannelPromise)} and {@link #flush()}.
      */
     ChannelFuture writeAndFlush(Object msg, ChannelPromise promise);
 
     /**
+     * 一个方便的方法用户调用write(...)而后调用y flush()
      * Shortcut for call {@link #write(Object)} and {@link #flush()}.
      */
     ChannelFuture writeAndFlush(Object msg);

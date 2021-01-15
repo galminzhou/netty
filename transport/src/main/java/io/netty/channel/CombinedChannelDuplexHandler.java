@@ -27,6 +27,8 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
 import java.net.SocketAddress;
 
 /**
+ *  编码（Encoder）和 解码（Decoder）若是耦合严重，则推荐使用CombinedChannelDuplexHandler，例如：HTTP；
+ *
  *  Combines a {@link ChannelInboundHandler} and a {@link ChannelOutboundHandler} into one {@link ChannelHandler}.
  */
 public class CombinedChannelDuplexHandler<I extends ChannelInboundHandler, O extends ChannelOutboundHandler>

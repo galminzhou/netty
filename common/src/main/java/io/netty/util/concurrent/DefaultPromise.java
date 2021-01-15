@@ -47,9 +47,12 @@ public class DefaultPromise<V> extends AbstractFuture<V> implements Promise<V> {
             StacklessCancellationException.newInstance(DefaultPromise.class, "cancel(...)"));
     private static final StackTraceElement[] CANCELLATION_STACK = CANCELLATION_CAUSE_HOLDER.cause.getStackTrace();
 
+    /** 保存执行结果 */
     private volatile Object result;
+    /** 执行任务的线程池，promise 持有 executors 引用； */
     private final EventExecutor executor;
     /**
+     * 监听者，回调函数；任务结束（正常结束 or 异常结束）之后执行；
      * One or more listeners. Can be a {@link GenericFutureListener} or a {@link DefaultFutureListeners}.
      * If {@code null}, it means either 1) no listeners were added yet or 2) all listeners were notified.
      *
@@ -62,6 +65,7 @@ public class DefaultPromise<V> extends AbstractFuture<V> implements Promise<V> {
     private short waiters;
 
     /**
+     * 是否正在唤醒等待线程，用于防止重复执行唤醒（重复执行 listeners的回调方法）；
      * Threading - synchronized(this). We must prevent concurrent notification and FIFO listener notification if the
      * executor changes.
      */
@@ -402,6 +406,7 @@ public class DefaultPromise<V> extends AbstractFuture<V> implements Promise<V> {
     @Override
     public Promise<V> sync() throws InterruptedException {
         await();
+        // 获取保存的结果，然后作为异常信息抛出
         rethrowIfFailed();
         return this;
     }

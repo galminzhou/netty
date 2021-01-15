@@ -20,6 +20,9 @@ import io.netty.util.concurrent.GenericFutureListener;
 import io.netty.util.concurrent.Promise;
 
 /**
+ * 如果消息是被 消耗/丢弃 并不会被传入下个 ChannelPipeline 的 ChannelOutboundHandler，调用 ReferenceCountUtil.release(message) 。
+ * 一旦消息经过实际的传输，在消息被写或者 Channel 关闭时，它将会自动释放。
+ *
  * Special {@link ChannelFuture} which is writable.
  */
 public interface ChannelPromise extends ChannelFuture, Promise<Void> {

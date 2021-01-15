@@ -35,6 +35,9 @@ import java.util.ArrayDeque;
 import java.util.Queue;
 
 /**
+ *
+ * 平台不支持 zero-copy 或者 需要转换数据，从文件中一块一块的获取数据
+ *
  * A {@link ChannelHandler} that adds support for writing a large data stream
  * asynchronously neither spending a lot of memory nor getting
  * {@link OutOfMemoryError}.  Large data streaming such as file

@@ -22,6 +22,11 @@ import io.netty.util.internal.StringUtil;
 import java.nio.ByteBuffer;
 
 /**
+ * ByteBufAllocator 实现类之一(不池化ByteBuf实例)：
+ * 不池化ByteBuf实例，并且在每次它被调用时都会返回一个新的实例。
+ * 创建非池化的缓冲，使用 {@link Unpooled} 工具类。
+ *
+ *
  * Simplistic {@link ByteBufAllocator} implementation that does not pool anything.
  */
 public final class UnpooledByteBufAllocator extends AbstractByteBufAllocator implements ByteBufAllocatorMetricProvider {

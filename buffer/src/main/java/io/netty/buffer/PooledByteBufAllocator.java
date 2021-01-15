@@ -35,6 +35,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * ByteBufAllocator 实现类之一(池化ByteBuf实例)：
+ * 池化了ByteBuf的实例以提高性能并最大限度地减少内存碎片。
+ * 此实现使用了一种称为jemalloc的已被大量现代操作系统所采用的高效方法来分配内存。
+ * 在每一个实现了Channel接口的类中，都包含了一个alloc方法，来返回与该Channel绑定的一个ByteBufAllocator。
+ *
+ */
 public class PooledByteBufAllocator extends AbstractByteBufAllocator implements ByteBufAllocatorMetricProvider {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(PooledByteBufAllocator.class);

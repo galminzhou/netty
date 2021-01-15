@@ -51,6 +51,14 @@ import static io.netty.util.internal.StringUtil.NEWLINE;
 import static io.netty.util.internal.StringUtil.isSurrogate;
 
 /**
+ * ByteBuf的静态操作辅助工具类，例如：
+ *  hexDump 方法返回指定 ByteBuf 中可读字节的十六进制字符串，可以用于调试程序时打印 ByteBuf 的内容。
+ *  boolean equals(ByteBuf, ByteBuf) 方法用来比较 ByteBuf 实例是否相等。在实现自己ByteBuf的子类时经常用到。
+ *
+ * ByteBufUtil工具的类的关注点是对于已有的缓冲区的操作，如打印（hexDump）、编码、解码、拷贝等。
+ *
+ *
+ *
  * A collection of utility methods that is related with handling {@link ByteBuf},
  * such as the generation of hex dump and swapping an integer's byte order.
  */

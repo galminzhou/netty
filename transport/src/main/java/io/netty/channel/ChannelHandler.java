@@ -26,6 +26,24 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
+ * [SSSSS-核心类]
+ *
+ * Netty的扩展接口，也是开发实现服务器通讯协议和业务功能的地方；
+ * Channel有两种类型：处理输入事件的ChannelInboundHandler和处理输出事件的ChannelOutboundHandler。
+ *
+ * 自定义的ChannelHandler要实现两个接口中的任意一个或全部；
+ * 当开发向ChannelPipeline注册一个自定义的ChannelHandler时，ChannelPipeline会创建一个相应的ChannelHandlerContent实例，
+ * 并让ChannelHandlerContent实例持有开发定义的ChannelHandler实例；然后将其添加至ChannelHandler双向链表中。
+ *
+ * 开发人员注册的ChannelHandler的类型决定了此实例的类型，进而决定了此实例能够处理的事件类型。
+ *
+ * 核心处理业务，用于处理业务请求。
+ * 1) 传输数据时，将数据从一种格式转换到另一种格式；
+ * 2) 异常通知；
+ * 3) Channel 变为 active（活动） 或 inactive（非活动） 时获得通知
+ * 4) Channel 被注册或注销时从 EventLoop 中获得通知；
+ * 5) 通知用户特定事件；
+ *
  * Handles an I/O event or intercepts an I/O operation, and forwards it to its next handler in
  * its {@link ChannelPipeline}.
  *

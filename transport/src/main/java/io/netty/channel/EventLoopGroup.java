@@ -18,6 +18,12 @@ package io.netty.channel;
 import io.netty.util.concurrent.EventExecutorGroup;
 
 /**
+ * 在Channel上执行 I/O的线程组，Netty将这个线程定义为I/O线程，某些特定的事件必须在I/O线程中处理；
+ *
+ * 一个EventLoopGroup中包含多个EventLoop，
+ * 可以简单的将一个EventLoop看作是Reactor线程模型中的一个线程，
+ * 而一个EventLoopGroup类比于一个 {@link java.util.concurrent.ExecutorService 接口}，当然它们之间并不是等价；
+ *
  * Special {@link EventExecutorGroup} which allows registering {@link Channel}s that get
  * processed for later selection during the event loop.
  *

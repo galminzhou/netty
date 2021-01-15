@@ -24,6 +24,8 @@ import io.netty.util.internal.ObjectUtil;
 import java.util.List;
 
 /**
+ * 接收ByteBuf由一个或多个分隔符拆分，如NUL或换行符
+ *
  * A decoder that splits the received {@link ByteBuf}s by one or more
  * delimiters.  It is particularly useful for decoding the frames which ends
  * with a delimiter such as {@link Delimiters#nulDelimiter() NUL} or

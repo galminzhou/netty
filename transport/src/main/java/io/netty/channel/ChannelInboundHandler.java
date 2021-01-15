@@ -16,6 +16,8 @@
 package io.netty.channel;
 
 /**
+ * 用于接收、处理入站( Inbound )的数据和事件;
+ *
  * {@link ChannelHandler} which adds callbacks for state changes. This allows the user
  * to hook in to state changes easily.
  */

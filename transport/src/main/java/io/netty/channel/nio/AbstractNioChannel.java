@@ -43,6 +43,15 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * 在Channel三层结构中是第一个抽象层
+ *  1) 对channel进行基本的初始化工作，将channel设置成非阻塞模式；
+ *  2) 实现 {@link Channel.Unsafe#connect(SocketAddress)}的方法框架，
+ *     提供 {@link this#doConnect(SocketAddress, SocketAddress)} 和 {@link this#doFinishConnect()}
+ *     两个抽象方法，将真正的连接操作交给子类实现；
+ *  3) 覆盖了 {@link AbstractChannel} 类 {@link this#doRegister()} 和 {@link this#doDeregister()}方法；
+ *     两个方法实现了 Channel 的 selectionKey的注册和注销；
+ *  4) 实现了{@link AbstractChannel#doClose()} -> {@link this#doClose()}，但是此方法并没有真正的关闭Channel动作；
+ *
  * Abstract base class for {@link Channel} implementations which use a Selector based approach.
  */
 public abstract class AbstractNioChannel extends AbstractChannel {
@@ -79,8 +88,10 @@ public abstract class AbstractNioChannel extends AbstractChannel {
     protected AbstractNioChannel(Channel parent, SelectableChannel ch, int readInterestOp) {
         super(parent);
         this.ch = ch;
+        // 保存 SelectionKey.OP_READ
         this.readInterestOp = readInterestOp;
         try {
+            // 设置channel非阻塞模式
             ch.configureBlocking(false);
         } catch (IOException e) {
             try {

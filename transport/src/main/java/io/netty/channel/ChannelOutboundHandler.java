@@ -18,6 +18,13 @@ package io.netty.channel;
 import java.net.SocketAddress;
 
 /**
+ * 用于接收、处理出站( Outbound )的数据和事件；
+ *
+ * ChannelInboundHandler 处理入站数据以及各种状态变化，
+ * 当Channel状态发生改变会调用ChannelInboundHandler中的一些生命周期方法，这些方法与Channel的生命密切相关。
+ *
+ * 入站数据,就是进入socket的数据。
+ *
  * {@link ChannelHandler} which will get notified for IO-outbound-operations.
  */
 public interface ChannelOutboundHandler extends ChannelHandler {

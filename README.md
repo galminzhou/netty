@@ -62,3 +62,19 @@ are listed below:
 
 Automatic modules do not provide any means to declare dependencies, so you need to list each used module separately
 in your `module-info` file.
+
+-----------
+#1 学习笔记
+```markdown 
+mvn  package -DskipTests  -Dos.detected.classifier=osx-x86_64
+```
+
+
+**mvn命令增加一些引数**
+```markdown
+-Dos.detected.name=linux -Dos.detected.arch=x86_64 -Dos.detected.classifier=linux-x86_64
+```
+
+
+mvn clean package -DskipTests -Dcheckstyle.skip -Dos.detected.classifier=osx-x86_64 -Dcheckstyle.skip
+

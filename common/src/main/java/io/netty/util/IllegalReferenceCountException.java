@@ -17,6 +17,9 @@
 package io.netty.util;
 
 /**
+ * 如果尝试获取一个引用计数的具体对象，但是该对象已经被释放的时候，会抛出一个IllegalReferenceCountException的异常。
+ *
+ *
  * An {@link IllegalStateException} which is raised when a user attempts to access a {@link ReferenceCounted} whose
  * reference count has been decreased to 0 (and consequently freed).
  */

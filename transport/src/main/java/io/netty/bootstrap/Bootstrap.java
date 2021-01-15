@@ -22,6 +22,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.resolver.AddressResolver;
 import io.netty.resolver.DefaultAddressResolverGroup;
 import io.netty.resolver.NameResolver;
@@ -37,6 +38,10 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
 /**
+ * [SSSSS-核心类]
+ *
+ * Netty 应用程序通过设置bootstrap（引导）类开始；
+ *
  * A {@link Bootstrap} that makes it easy to bootstrap a {@link Channel} to use
  * for clients.
  *
@@ -79,8 +84,7 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
     }
 
     /**
-     * The {@link SocketAddress} to connect to once the {@link #connect()} method
-     * is called.
+     * The {@link SocketAddress} to connect to once the {@link #connect()} method is called.
      */
     public Bootstrap remoteAddress(SocketAddress remoteAddress) {
         this.remoteAddress = remoteAddress;
@@ -117,6 +121,7 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
     }
 
     /**
+     * 客户端 bootstrap，
      * Connect a {@link Channel} to the remote peer.
      */
     public ChannelFuture connect(String inetHost, int inetPort) {
@@ -135,6 +140,7 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
      */
     public ChannelFuture connect(SocketAddress remoteAddress) {
         ObjectUtil.checkNotNull(remoteAddress, "remoteAddress");
+        /** 校验参数是否正确 */
         validate();
         return doResolveAndConnect(remoteAddress, config.localAddress());
     }
@@ -149,9 +155,19 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
     }
 
     /**
+     * 实例化Channel的实现类的实例（Java reflect）
+     *  TCP-Client {@link NioSocketChannel#NioSocketChannel()
+     *      创建Netty的NioSocketChannel实例时，首先实例化JDK NIO的SocketChannel实例；
+     *      然后实例化了内部 NioSocketChannelConfig的实例，用于保存 JDK NIO的SocketChannel信息；
+     *      绑定一个ChannelId，设置Channel的ChannelPipeline；
+     *      设置为{@link java.nio.channels.SelectionKey#OP_READ}等待读服务端返回数据 和 Channel非阻塞模式；
+     *  }
+     *
      * @see #connect()
      */
     private ChannelFuture doResolveAndConnect(final SocketAddress remoteAddress, final SocketAddress localAddress) {
+        // 绑定一个JDK NIO的SocketChannel实例并通过NioSocketChannelConfig实例保存信息；
+        // 绑定一个netty ChannelPipeline，设置NIO SelectionKey#OP_READ事件 和 Channel非阻塞模式；
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();
 

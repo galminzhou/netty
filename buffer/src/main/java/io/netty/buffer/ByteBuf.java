@@ -30,6 +30,109 @@ import java.nio.charset.Charset;
 import java.nio.charset.UnsupportedCharsetException;
 
 /**
+ * ByteBuf是一个存储字节的容器，最大特点就是使用方便，
+ * 它既有自己的读索引和写索引，方便开发人员对整段字节缓存进行读写，
+ * 也支持get/set，方便开发人员对其中每一个字节进行读写：
+ *
+ * 三种使用模式：
+ * 1) Heap Buffer 堆缓冲区
+ *      堆缓冲区是ByteBuf最常用的模式，他将数据存储在堆空间。
+ * 2) Direct Buffer 直接缓冲区
+ *      直接缓冲区是ByteBuf的另外一种常用模式，他的内存分配都不发生在堆，
+ *      jdk1.4引入的nio的ByteBuffer类允许jvm通过本地方法调用分配内存，这样做有两个好处
+ *          a) 通过免去中间交换的内存拷贝, 提升IO处理速度;
+ *             直接缓冲区的内容可以驻留在垃圾回收扫描的堆区以外。
+ *          b) DirectBuffer 在 -XX:MaxDirectMemorySize=xxM大小限制下,
+ *             使用 Heap 之外的内存, GC对此”无能为力”,
+ *             也就意味着规避了在高负载下频繁的GC过程对应用线程的中断影响
+ * 3) Composite Buffer 复合缓冲区
+ *      复合缓冲区相当于多个不同ByteBuf的视图，这是netty提供的，jdk不提供这样的功能。
+ *
+ * ByteBuf提供了丰富的API，大致上分为以下几类：
+ *      1) 随机访问索引：
+ *         提供一组getXXX系列接口，在不改变内部索引的情况下遍历整个缓冲区，就像在访问byte数组。
+ *         这组API有多个重载函数，支持将指定下标位置数据转换为不同类型，
+ *         如Char、Int、Boolean等基本类型，也支持在返回的时候转换为大、小字节序
+ *      2) 顺序访问索引：
+ *         提供Reader和Writer读写数据，这两个方法会修改内部的两个索引。
+ *      3) 元素查找：
+ *         仅支持单个字节的搜索，如indexOf、bytesBefore等
+ *      4) 标记与重置：
+ *         类似Java NIO ByteBuffer中的mark和reset方法
+ *      5) 获取衍生缓冲区：
+ *         对缓冲区数据提供获取片段、深拷贝、浅拷贝等方法
+ *      6) 类型转换：
+ *         如转换为JDK中的数据类型（如ByteBuffer）
+ *
+ * 获取衍生缓冲区比较重要的API包括：
+ * {@link this#duplicate()
+ *      对于ByteBuf进行一个浅拷贝，共享同一个数据区域，但不共享read和write索引。
+ *      不会导致引用计数+1。该方法代替了DuplicatedByteBuf这个类
+ * }：
+ * {@link this#retainedDuplicate()
+ *      相当于调用了duplicate().retain()，既引用计数+1
+ * }
+ * {@link this#slice()
+ *      返回对可读区域的一个浅拷贝，拷贝出来的对象与原对象共享同一个数据区域但不共享读写索引。
+ *      不会导致引用计数+1。该方法代替了SlicedByteBuf这个类
+ * }
+ * {@link this#retainedSlice()
+ *      相当于调用了slice().retain() ，即引用计数+1
+ * }
+ * {@link this#readSlice(int)
+ *      深拷贝从readerIndex ~ readerIndex + length区间内的数据。
+ *      不会导致引用计数+1
+ * }
+ * {@link this#readRetainedSlice(int)
+ *      相当于调用了readSlice().retain()，即引用计数+1
+ * }
+ * 以上方法返回的缓冲区都是与原缓冲公用数据源的，如果想要一份独立的拷贝，使用copy方法。
+ *
+ *
+ * ByteBuf的最终实现类有：
+ * {@link EmptyByteBuf
+ *      一个空Buffer，最大容量是0
+ * }
+ * {@link UnpooledDirectByteBuf
+ *      这是一个基于java.nio.ByteBuffer的缓冲区。
+ *      建议通过UnpooledByteBufAllocator或Unpooled工具类来创建实例
+ * }
+ * {@link UnpooledHeapByteBuf
+ *      一个基于大端字节序的Java堆内存上的缓冲区实现。
+ *      建议通过UnpooledByteBufAllocator或Unpooled工具类来创建实例
+ * }
+ * {@link CompositeByteBuf
+ *      可用于组合数个缓冲区为一体，并对外展现为一个缓冲区。
+ *      建议通过UnpooledByteBufAllocator或Unpooled工具类来创建实例
+ * }
+ *
+ * ByteBuf 工作原理：
+ * 在Netty中，读写分别有一个索引，另外capacity代表了缓冲区的初始容量，
+ * 由于Netty的缓冲区支持扩展，因此还有一个maxCapacity用于表示扩展上限。
+ *
+ * readerIndex（读指针），writerIndex（写指针），capacity（初始容量）将ByteBuf划分为是那个区域：
+ * <pre>
+ *      +-------------------+------------------+------------------+
+ *      | discardable bytes |  readable bytes  |  writable bytes  |
+ *      |                   |     (CONTENT)    |                  |
+ *      +-------------------+------------------+------------------+
+ *      |                   |                  |                  |
+ *      0      <=      readerIndex   <=   writerIndex    <=    capacity
+ * </pre>
+ * readerIndex与writerIndex初始值都是0，调用writer系列方法则开始向缓冲区中写入数据，
+ * 同时向后移动writerIndex指针，writerIndex不能大于capacity。
+ *
+ * 调用read系列方法读取缓冲区的数据，同时向后移动readerIndex指针，readerIndex不能大于writerIndex。
+ *
+ * 可废弃区域（discardable）
+ * 即0 ~ readerIndex这段区域，表示已经读取过数据的区域，
+ * 此时调用discardReadBytes方法即可将这部分区域清理掉，
+ * 并将整个未读取区域向左移动到数组开始，此举相当于将已读取部分的空间清理并追加到未使用区域。
+ *
+ * 调用clear方法，是将readerIndex与writerIndex同时置零；但实际缓冲区的数据并未清理，此时再往里写数据相当于是覆盖。
+ *
+ *
+ *
  * A random and sequential accessible sequence of zero or more bytes (octets).
  * This interface provides an abstract view for one or more primitive byte
  * arrays ({@code byte[]}) and {@linkplain ByteBuffer NIO buffers}.

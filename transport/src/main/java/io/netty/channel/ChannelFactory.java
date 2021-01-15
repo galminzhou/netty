@@ -21,6 +21,9 @@ package io.netty.channel;
 @SuppressWarnings({ "ClassNameSameAsAncestorName", "deprecation" })
 public interface ChannelFactory<T extends Channel> extends io.netty.bootstrap.ChannelFactory<T> {
     /**
+     * 工厂模式：通过使用反射调用Channel的无参构造方法来创建Channel实例；
+     *  1) 对于NioSocketChannel而言，由于它是充当客户端的功能，它的创建时机在连接 connect(...) 的时候；
+     *  2) 对于NioServerSocketChannel而言，它充当服务端的功能，它的创建时机在绑定端口 bind(...) 的时候；
      * Creates a new channel.
      */
     @Override

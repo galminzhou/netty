@@ -38,6 +38,12 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 
 /**
+ * {@link AbstractChannel 抽象类，实现了Channel接口} 和 {@link AbstractUnsafe 抽象类，实现了Unsafe接口}的关系：
+ * 1) 它们实现类Channel和Unsafe的大部分接口；
+ * 2) 在AbstractChannel的实现中，每个方法都会直接或者间接的调用Unsafe对应的同名方法；
+ * 3) 所有的inbound和outbound方法都是通过ChannelPipeline间接调用，其它的辅助方法直接使用unsafe实例调用；
+ *
+ *
  * A skeletal {@link Channel} implementation.
  */
 public abstract class AbstractChannel extends DefaultAttributeMap implements Channel {
@@ -71,8 +77,8 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     protected AbstractChannel(Channel parent) {
         this.parent = parent;
         id = newId();
-        unsafe = newUnsafe();
-        pipeline = newChannelPipeline();
+        unsafe = newUnsafe(); // 在Abstract中没有实现此方法，钩子方法由子类实现
+        pipeline = newChannelPipeline(); // 默认的DefaultChannelPipeline实例
     }
 
     /**
@@ -420,6 +426,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
         private RecvByteBufAllocator.Handle recvHandle;
         private boolean inFlush0;
         /** true if the channel has never been registered, false otherwise */
+        /** true: 此Channel从未注册过，否则 false */
         private boolean neverRegistered = true;
 
         private void assertEventLoop() {
@@ -449,25 +456,43 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             return remoteAddress0();
         }
 
+        /**
+         * register语义：
+         *  1) 将Channel和EventLoop绑定，EventLoop线程就是I/O线程；
+         *  2) 确保真正的register（{@link this#doRegister() 子类实现内容}）操作在I/O线程中执行；
+         *  3) 确保每个register的操作仅执行一次；
+         *  4) 真正的register操作执行成功后，触发channelRegistered事件，
+         *     若channel此时仍处于active状态，触发channelActive事件，并确保这些事件只触发一次；
+         *  5) 真正的register操作执行成功后,
+         *     若 channel此时仍处于active状态，并且channel的配置支持autoRead,
+         *     则执行beginRead操作，让eventLoop可以自动触发channel的read事件；
+         */
         @Override
         public final void register(EventLoop eventLoop, final ChannelPromise promise) {
             ObjectUtil.checkNotNull(eventLoop, "eventLoop");
+            // 若已注册到事件循环中，则结束
             if (isRegistered()) {
                 promise.setFailure(new IllegalStateException("registered to an event loop already"));
                 return;
             }
+            // 兼容EventLoop的类型，例如：NIO、Epoll则与之对应的Channel兼容；
             if (!isCompatible(eventLoop)) {
                 promise.setFailure(
                         new IllegalStateException("incompatible event loop type: " + eventLoop.getClass().getName()));
                 return;
             }
 
+            // 将channel绑定一个eventLoop，一个Channel的I/O事件都将由此eventLoop执行，
+            // 但是一个eventLoop可能会绑定多个channel；在操作ThreadLock时需要注意；
             AbstractChannel.this.eventLoop = eventLoop;
 
+            // 若发起register动作的线程是eventLoop中的线程，则直接执行 register0(promise)；
+            // 但是在unregister操作之后，然后在register，则进入分支；
             if (eventLoop.inEventLoop()) {
                 register0(promise);
             } else {
                 try {
+                    // 提交task给EventLoop，由eventLoop中的线程负责调用 register0(promise)；
                     eventLoop.execute(new Runnable() {
                         @Override
                         public void run() {
@@ -478,6 +503,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                     logger.warn(
                             "Force-closing a channel whose registration task was not accepted by an event loop: {}",
                             AbstractChannel.this, t);
+                    // 若在执行register中出现异常，则直接关闭不触发任何事件
                     closeForcibly();
                     closeFuture.setClosed();
                     safeSetFailure(promise, t);
@@ -489,30 +515,40 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             try {
                 // check if the channel is still open as it could be closed in the mean time when the register
                 // call was outside of the eventLoop
+                // 检查promise没有被取消（or丢弃）同时Channel没有被关闭，则继续执行，否则中断操作；
                 if (!promise.setUncancellable() || !ensureOpen(promise)) {
                     return;
                 }
                 boolean firstRegistration = neverRegistered;
+                // 执行真正的register操作，交由子类实现；
                 doRegister();
+                // Channel已注册，设置false
                 neverRegistered = false;
+                // 设置Channel已处于register状态
                 registered = true;
 
                 // Ensure we call handlerAdded(...) before we actually notify the promise. This is needed as the
                 // user may already fire events through the pipeline in the ChannelFutureListener.
+                /** register-注册，触发 {@link ChannelHandler#handlerAdded(ChannelHandlerContext)} 事件 */
                 pipeline.invokeHandlerAddedIfNeeded();
 
+                /** 标记promise成功，若promise已完成则记录一条消息*/
                 safeSetSuccess(promise);
+                /** register-注册，触发 {@link ChannelInboundHandler#channelRegistered(ChannelHandlerContext)} 事件 */
                 pipeline.fireChannelRegistered();
                 // Only fire a channelActive if the channel has never been registered. This prevents firing
                 // multiple channel actives if the channel is deregistered and re-registered.
                 if (isActive()) {
+                    /** 检查channel是否是第一次被触发 {@link this#neverRegistered} */
                     if (firstRegistration) {
+                        /** register-注册，触发{@link ChannelInboundHandler#channelActive(ChannelHandlerContext)} 事件 */
                         pipeline.fireChannelActive();
                     } else if (config().isAutoRead()) {
                         // This channel was registered before and autoRead() is set. This means we need to begin read
                         // again so that we process inbound data.
                         //
                         // See https://github.com/netty/netty/issues/4805
+                        // 对于底层NIO-Channel，增加关注OP_READ的事件；
                         beginRead();
                     }
                 }

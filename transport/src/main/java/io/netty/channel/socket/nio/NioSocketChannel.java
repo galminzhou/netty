@@ -52,10 +52,17 @@ import java.util.concurrent.Executor;
 import static io.netty.channel.internal.ChannelUtils.MAX_BYTES_PER_GATHERING_WRITE_ATTEMPTED_LOW_THRESHOLD;
 
 /**
+ * 在Channel三层结构中是第三层即实现层：实现了 TCP-Client；
+ * 在Netty中 NioSocketChannel 与 JKD的{@link SocketChannel} 是一对一的关系；
+ * 问题：NioSocketChannel 如何与 JDK的SocketChannel关联在一起？
+ *
+ *
+ *
  * {@link io.netty.channel.socket.SocketChannel} which uses NIO selector based implementation.
  */
 public class NioSocketChannel extends AbstractNioByteChannel implements io.netty.channel.socket.SocketChannel {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(NioSocketChannel.class);
+    /** JDK SelectorProvider, 此实例用于创建JDK的SocketChannel实例 */
     private static final SelectorProvider DEFAULT_SELECTOR_PROVIDER = SelectorProvider.provider();
 
     private static SocketChannel newSocket(SelectorProvider provider) {
@@ -85,6 +92,7 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
      * Create a new instance using the given {@link SelectorProvider}.
      */
     public NioSocketChannel(SelectorProvider provider) {
+        // newSocket(provider) 创建一个JDK NIO 的 SocketChannel实例；
         this(newSocket(provider));
     }
 

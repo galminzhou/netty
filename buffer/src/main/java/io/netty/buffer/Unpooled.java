@@ -28,6 +28,18 @@ import java.util.Arrays;
 
 
 /**
+ * 提供了大量静态方法来创建缓冲区的工具类（非池化的 ByteBuf 实例的创建）。
+ * 该工具实际上是通过调用{@link UnpooledByteBufAllocator}来实现最终缓冲区的创建工作；
+ *
+ * 静态方法主要分为以下三类：
+ *      1) 创建新的缓冲区
+ *      2) 基于已有缓冲区、byte数组或字符串创建一个wrapper缓冲区
+ *      3) 基于已有缓冲区创建一个副本缓冲区
+ *
+ * Unpooled类使得ByteBuf同样可用于那些并不需要Netty的其他组件的非网络项目，使得其能得益于高性能的可扩展的缓冲区API。
+ *
+ *
+ *
  * Creates a new {@link ByteBuf} by allocating new space or by wrapping
  * or copying existing byte arrays, byte buffers and a string.
  *

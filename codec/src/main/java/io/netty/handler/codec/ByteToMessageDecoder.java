@@ -32,6 +32,10 @@ import static io.netty.util.internal.ObjectUtil.checkPositive;
 import static java.lang.Integer.MAX_VALUE;
 
 /**
+ * ByteToMessageDecoder 是用于将字节转为消息（或其它字节序列）；
+ * 因不能确定远端是否会一次发送完一个完整的“信息”，因此这个类会缓存入站的数据，直到准备好了用于处理。
+ *
+ *
  * {@link ChannelInboundHandlerAdapter} which decodes bytes in a stream-like fashion from one {@link ByteBuf} to an
  * other Message type.
  *

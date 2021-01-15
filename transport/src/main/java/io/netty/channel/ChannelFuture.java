@@ -24,6 +24,8 @@ import java.util.concurrent.TimeUnit;
 
 
 /**
+ * [SSSSS-核心类]
+ *
  * The result of an asynchronous {@link Channel} I/O operation.
  * <p>
  * All I/O operations in Netty are asynchronous.  It means any I/O calls will
@@ -165,10 +167,15 @@ import java.util.concurrent.TimeUnit;
 public interface ChannelFuture extends Future<Void> {
 
     /**
+     * ChannelFuture 关联的 Channel；
      * Returns a channel where the I/O operation associated with this
      * future takes place.
      */
     Channel channel();
+
+    /* ****************** Override start ******************
+     * 覆盖下列方法，使得它们的返回值为 ChannelFuture 类型；
+     */
 
     @Override
     ChannelFuture addListener(GenericFutureListener<? extends Future<? super Void>> listener);
@@ -194,7 +201,10 @@ public interface ChannelFuture extends Future<Void> {
     @Override
     ChannelFuture awaitUninterruptibly();
 
+    /* ****************** Override end ******************/
+
     /**
+     * 若此future是一个 void future，则不允许调用 addListener，sync，syncUninterruptibly，await，awaitUninterruptibly等方法；
      * Returns {@code true} if this {@link ChannelFuture} is a void future and so not allow to call any of the
      * following methods:
      * <ul>

@@ -24,6 +24,8 @@ import java.io.InputStream;
 import java.io.PushbackInputStream;
 
 /**
+ * 从 InputStream 中一块一块的转移内容
+ *
  * A {@link ChunkedInput} that fetches data from an {@link InputStream} chunk by
  * chunk.
  * <p>

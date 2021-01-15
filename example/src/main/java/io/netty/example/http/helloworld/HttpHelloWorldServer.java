@@ -47,8 +47,13 @@ public final class HttpHelloWorldServer {
         }
 
         // Configure the server.
+        // 第一个EventLoopGroup：bootGroup
+        //   负责客户端的连接请求，然后打开Channel，交给第二个EventLoopGroup；
+        // 第二个EventLoopGroup：workerGroup
+        //   在第二个EventLoopGroup中的某一个EventLoop会负责第一个EventLoopGroup交给来的Channel上的所有读写事件，
+        //   一个Channel只会被一个EventLoop处理，而一个EventLoop可能会被分配多个Channel来负责上面的事件。
         EventLoopGroup bossGroup = new NioEventLoopGroup(1);
-        EventLoopGroup workerGroup = new NioEventLoopGroup();
+        EventLoopGroup workerGroup = new NioEventLoopGroup(); // 默认是CPU*2的数量
         try {
             ServerBootstrap b = new ServerBootstrap();
             b.option(ChannelOption.SO_BACKLOG, 1024);

@@ -26,6 +26,7 @@ import java.util.Map;
 
 public abstract class TypeParameterMatcher {
 
+    /** 空类型参数匹配 */
     private static final TypeParameterMatcher NOOP = new TypeParameterMatcher() {
         @Override
         public boolean match(Object msg) {

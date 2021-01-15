@@ -39,6 +39,20 @@ import static io.netty.util.internal.StringUtil.EMPTY_STRING;
 import static io.netty.util.internal.StringUtil.NEWLINE;
 import static io.netty.util.internal.StringUtil.simpleClassName;
 
+/**
+ * [资源管理]
+ * 当通过 ChannelInboundHandler.channelRead(...) 或者 ChannelOutboundHandler.write(...) 来处理数据，
+ * 重要的是在处理资源时要确保资源不要泄漏。
+ *
+ * Netty 使用引用计数器来处理池化的 ByteBuf。所以当 ByteBuf 完全处理后，要确保引用计数器被调整。
+ *
+ * 引用计数的权衡之一是使用时必须小心使用消息。
+ * 当 JVM 仍在 GC(不知道有这样的消息引用计数)这个消息，以至于可能是之前获得的这个消息不会被放回池中。
+ * 因此很可能，如果不小心释放这些消息，很可能会耗尽资源。
+ *
+ * 为了让开发人员更加简单的找到遗漏的释放，Netty 包含了一个 ResourceLeakDetector ，
+ * 将会从已分配的缓冲区 1% 作为样品来检查是否存在在应用程序泄漏。因为 1% 的抽样,开销很小。
+ */
 public class ResourceLeakDetector<T> {
 
     private static final String PROP_LEVEL_OLD = "io.netty.leakDetectionLevel";
@@ -60,6 +74,8 @@ public class ResourceLeakDetector<T> {
      */
     public enum Level {
         /**
+         * 禁用资源泄漏检测
+         *
          * Disables resource leak detection.
          */
         DISABLED,

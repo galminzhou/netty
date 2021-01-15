@@ -28,6 +28,8 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 
 /**
+ * 与 ChunkedFile 类似，处理使用了NIOFileChannel
+ *
  * A {@link ChunkedInput} that fetches data from a file chunk by chunk using
  * NIO {@link FileChannel}.
  * <p>

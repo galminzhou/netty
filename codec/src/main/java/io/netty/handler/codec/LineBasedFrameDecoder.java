@@ -22,6 +22,8 @@ import io.netty.util.ByteProcessor;
 import java.util.List;
 
 /**
+ * 接收ByteBuf以分割线结束，如"\n"和"\r\n"
+ *
  * A decoder that splits the received {@link ByteBuf}s on line endings.
  * <p>
  * Both {@code "\n"} and {@code "\r\n"} are handled.
