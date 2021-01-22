@@ -45,12 +45,15 @@ import java.util.NoSuchElementException;
  * 每个Channel内部都有一个Pipeline，pipeline由多个handler组成，
  * handler之间顺序很非常重要的，因为 I/O事件将按照顺序顺次经过 pipeline上的 各个handler；
  * 这样每个handler都只需要关注自己的单个事件，由多个handler组合来完成一些复杂的逻辑。
+ * InboundHandler是按照Pipeline的加载顺序，顺序执行；OutboundHandler是按照Pipeline的加载顺序，逆序执行；
+ * 有效的InboundHandler是指通过fire事件能触达到的最后一个InboundHandler；
  *
  * 在Netty中 pipeline是一个双向链表的数据结构，并由ChannelPipeline负责维护；
  * ChannelPipeline的默认实现中，链表默认添加了Head和Tail节点，
  *  1) Head节点 同时实现{@link ChannelInboundHandler 入站接口} 和 {@link ChannelOutboundHandler 出站接口}，
- *     Head节点 比较特殊，它会最终将事件叫个Channel处理。
+ *     Head节点 比较特殊，它会最终将事件交给Channel处理。
  *  2) Tail节点 实现了{@link ChannelInboundHandler 入站接口}，使用Channel触发的 inbound事件会首先在Tail节点处理；
+ *  3) Inbound事件是从 Head节点开始至Tail结束，而Outbound操作是从 Tail节点开始至Head结束；
  *
  * ----------------------------------- Inbound事件 和 Outbound操作 -----------------------------------
  * Inbound events 和 Outbound operations，即Inbound是事件，Outbound是操作（直接导致的事件）:
@@ -64,25 +67,26 @@ import java.util.NoSuchElementException;
  *     在比如某个socket连接了上来并被注册到了某个eventLoop；
  *     Inbound事件的详细列表：{@link ChannelInboundHandler}
  *      channelActive/channelInactive
- *      channelInactive
  *      channelRead
  *      channelReadComplete
  *      channelRegistered / channelUnregistered
  *      channelWritabilityChanged
  *      exceptionCaught
  *      userEventTriggered
- *  2) 而Outbound事件是由应用程序主动请求而触发的事件，可以认为 Outbound是指某个应用程序发起了某个操作；
+ *  2) 而Outbound操作是由应用程序主动请求而触发的操作，可以认为 Outbound是指某个应用程序发起了某个操作；
  *     例如：向socket写入数据，再比如从socket读取数据（此处注意"读取"是指这个操作请求，而非"读完了"这个事件）
- *     这也就是解释了为什么 ChannelOutboundHander会有read方法；
+ *     这也就是解释了为什么 ChannelOutboundHandler会有read方法；
  *     Outbound事件列表：{@link ChannelOutboundHandler}
- *      bind
- *      close
- *      connect
- *      deregister
- *      disconnect
- *      flush
- *      read
- *      write
+ *      bind        让channel绑定的指定的本地地址(localAddress)；
+ *      close       关闭Channel；
+ *      connect     连接到远程地址(remoteAddress)；
+ *      disconnect  断开连接；
+ *      deregister  从EventLoop中注销当前Channel；
+ *      write       向Channel中写入数据，此操作并并不会导致真正写操作，只会将数据追加到输出缓冲区中；
+ *      flush       对输出到缓存区中的数据执行真正的写操作（即落盘），调用此方法之后连接的另一端才能收到write的数据；
+ *      read        请求从Channel读取数据到第一个入站缓冲区，
+ *                  若数据被读取，则触发 channelRead 事件，并触发 channelReadComplete事件，以便处理程序可以决定继续读取；
+ *
  *     需要注意，一旦应用程序发出以上操作请求，ChannelOutboundHandler中对应的方法就会被调用，
  *     而不是等到操作完毕之后才被调用，一个handler在处理时甚至可以将请求拦截而不再传递给后续的handler，使得真正的操作并不会被执行。
  *

@@ -72,26 +72,33 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
             throw new IllegalArgumentException(String.format("nThreads: %d (expected: > 0)", nThreads));
         }
 
+        // 创建一个JDK Executor接口的实现类实例，为每一个任务新建一个线程，给NioEventLoop使用；
         if (executor == null) {
             executor = new ThreadPerTaskExecutor(newDefaultThreadFactory());
         }
 
+        // 一个特殊的EventExecutorGroup，简而言之，就是线程池中的线程数组，用来执行ChannelHandler的线程任务；
         children = new EventExecutor[nThreads];
 
+        // 循环实例化 children数组中的每一个元素；
         for (int i = 0; i < nThreads; i ++) {
             boolean success = false;
             try {
+                // 创建一个 NioEventLoop实例
                 children[i] = newChild(executor, args);
                 success = true;
             } catch (Exception e) {
                 // TODO: Think about if this is a good exception type
                 throw new IllegalStateException("failed to create a child event loop", e);
             } finally {
+                // 若有一个child实例化失败，则进入失败处理逻辑
                 if (!success) {
+                    // 首先，将已经成功实例化的"线程（NioEventLoop）" shutdown（异步操作，优雅关闭），
                     for (int j = 0; j < i; j ++) {
                         children[j].shutdownGracefully();
                     }
 
+                    // 其次，等待线程的shutdown执行结束，将中断状态标识恢复，交给关心的线程来处理
                     for (int j = 0; j < i; j ++) {
                         EventExecutor e = children[j];
                         try {
@@ -107,9 +114,15 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
                 }
             }
         }
+        /**** Netty线程池：NioEventLoopGroup 实例化所有的线程（NioEventLoop）已结束并且成功完成 ****/
 
+        // 设置chooserFactory，用来实现从线程池中选择一个线程的选择策略：
+        // 1) 若线程池的数量是2^N，则使用'&（与运算）'的方式：【atomicInteger.getAndIncrement() & children.length -1 】获得index
+        // 2) 若不是，则使用'取模'的方式：【Math.abs(atomicInteger.getAndIncrement() % children.length)】获得index
         chooser = chooserFactory.newChooser(children);
 
+        // 设置一个Listener 用来监听线程池的 termination事件；
+        // 给池中的每一个线程都设置一个listener，当监听到池中所有的线程都termination之后，此线程池则termination；
         final FutureListener<Object> terminationListener = new FutureListener<Object>() {
             @Override
             public void operationComplete(Future<Object> future) throws Exception {
@@ -123,6 +136,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
             e.terminationFuture().addListener(terminationListener);
         }
 
+        // 设置一个 readonlyChildren 的只读集合，
         Set<EventExecutor> childrenSet = new LinkedHashSet<EventExecutor>(children.length);
         Collections.addAll(childrenSet, children);
         readonlyChildren = Collections.unmodifiableSet(childrenSet);

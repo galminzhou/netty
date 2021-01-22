@@ -39,6 +39,7 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ConnectionPendingException;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -88,7 +89,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
     protected AbstractNioChannel(Channel parent, SelectableChannel ch, int readInterestOp) {
         super(parent);
         this.ch = ch;
-        // 保存 SelectionKey.OP_READ
+        // 保存 tcp-client SelectionKey.OP_READ or tcp-server SelectionKey.OP_ACCEPT
         this.readInterestOp = readInterestOp;
         try {
             // 设置channel非阻塞模式
@@ -242,9 +243,13 @@ public abstract class AbstractNioChannel extends AbstractChannel {
             return javaChannel();
         }
 
+        /**********
+         *
+         */
         @Override
         public final void connect(
                 final SocketAddress remoteAddress, final SocketAddress localAddress, final ChannelPromise promise) {
+            // 标记此任务不可取消并且校验channel是否处于open状态；
             if (!promise.setUncancellable() || !ensureOpen(promise)) {
                 return;
             }
@@ -255,10 +260,20 @@ public abstract class AbstractNioChannel extends AbstractChannel {
                     throw new ConnectionPendingException();
                 }
 
+                // Channel是否激活
                 boolean wasActive = isActive();
+                // JDK API SocketChannel connect，设置interestOps 为 SelectionKey.OP_CONNECT
+                /*******
+                 * 从JDK 底层 SocketChannel 操作 connect 成功，设置interestOps 为 SelectionKey.OP_CONNECT；
+                 * 源码解读 {@link io.netty.channel.socket.nio.NioSocketChannel#doConnect(SocketAddress, SocketAddress)
+                 *      在register操作时，channel通过register注册到了selector上，只不过将interestOps设置值为"0"，即什么都不监听；
+                 *      而在connect操作时，若是在在调用JDK底层SocketChannel的connect成功之后，则设置 interestOps 为 SelectionKey.OP_CONNECT。
+                 * }
+                 */
                 if (doConnect(remoteAddress, localAddress)) {
+                    // 连接成功，
                     fulfillConnectPromise(promise, wasActive);
-                } else {
+                } else { // 连接超时
                     connectPromise = promise;
                     requestedRemoteAddress = remoteAddress;
 
@@ -388,6 +403,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         boolean selected = false;
         for (;;) {
             try {
+                /** JDK Channel 方法：{@link SelectableChannel#register(Selector, int, Object)} */
                 selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this);
                 return;
             } catch (CancelledKeyException e) {

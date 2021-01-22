@@ -320,6 +320,8 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
 
         boolean success = false;
         try {
+            // JDK API ChannelChannel连接成功，将设置interestOps 由："0" 什么都不监听，改为：SelectionKey.OP_CONNECT；
+            // 标记此TCP连接已建立起来了；
             boolean connected = SocketUtils.connect(javaChannel(), remoteAddress);
             if (!connected) {
                 selectionKey().interestOps(SelectionKey.OP_CONNECT);

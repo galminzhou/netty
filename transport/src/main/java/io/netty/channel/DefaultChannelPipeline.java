@@ -89,11 +89,15 @@ public class DefaultChannelPipeline implements ChannelPipeline {
      */
     private boolean registered;
 
+    /**
+     * 构建ChannelPipeline双向链表数据结构，将当前的channel的引用传入，并添加两个固定的handler到其中（head+tail）；
+     */
     protected DefaultChannelPipeline(Channel channel) {
         this.channel = ObjectUtil.checkNotNull(channel, "channel");
         succeededFuture = new SucceededChannelFuture(channel, null);
         voidPromise =  new VoidChannelPromise(channel, true);
 
+        // 创建一个双向链表的数据结构，并将tail和head连接起来；
         tail = new TailContext(this);
         head = new HeadContext(this);
 
@@ -1379,7 +1383,10 @@ public class DefaultChannelPipeline implements ChannelPipeline {
 
         @Override
         public void channelRegistered(ChannelHandlerContext ctx) {
+            // pipeline-head: 对于 channelRegistered 事件的处理
             invokeHandlerAddedIfNeeded();
+            // 往 pipeline 的下一个节点传播 Inbound事件
+            /** {@link io.netty.channel.AbstractChannelHandlerContext#fireChannelRegistered() 往pipeline下一个节点传播 Inbound事件} */
             ctx.fireChannelRegistered();
         }
 

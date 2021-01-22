@@ -319,7 +319,15 @@ public interface Channel extends AttributeMap, ChannelOutboundInvoker, Comparabl
         SocketAddress remoteAddress();
 
         /**
-         * 注册
+         * 注册 register语义：
+         *  1) 将Channel和EventLoop绑定，EventLoop线程就是I/O线程；
+         *  2) 确保真正的register（{@link io.netty.channel.AbstractChannel.AbstractUnsafe#doRegister() 子类实现内容}）操作在I/O线程中执行；
+         *  3) 确保每个register的操作仅执行一次；
+         *  4) 真正的register操作执行成功后，触发channelRegistered事件，
+         *     若channel此时仍处于active状态，触发channelActive事件，并确保这些事件只触发一次；
+         *  5) 真正的register操作执行成功后,
+         *     若 channel此时仍处于active状态，并且channel的配置支持autoRead,
+         *     则执行beginRead操作，让eventLoop可以自动触发channel的read事件；
          * Register the {@link Channel} of the {@link ChannelPromise} and notify
          * the {@link ChannelFuture} once the registration was complete.
          */

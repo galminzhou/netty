@@ -20,6 +20,10 @@ import io.netty.util.internal.ObjectUtil;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadFactory;
 
+/**
+ * {@link Executor} 为JDK 线程池的最顶层接口，只有一个execute(Runnable)方法；
+ * 在Netty中，实现类 ThreadPerTaskExecutor的逻辑就是：每来一个任务，则新建一个线程；
+ */
 public final class ThreadPerTaskExecutor implements Executor {
     private final ThreadFactory threadFactory;
 

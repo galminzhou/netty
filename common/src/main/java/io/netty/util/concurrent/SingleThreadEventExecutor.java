@@ -73,19 +73,27 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
     private static final AtomicReferenceFieldUpdater<SingleThreadEventExecutor, ThreadProperties> PROPERTIES_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(
                     SingleThreadEventExecutor.class, ThreadProperties.class, "threadProperties");
-
+    /** NioEventLoop线程的任务队列，此线程队列是线程安全的LinkedBlockingQueue，最大等待任务数参考：{@link this#maxPendingTasks}；
+     *  NioEventLoop需要负责IO事件和非IO事件，通常它都在执行selector的select方法或正在处理selectedKeys，
+     *  若要submit一个任务给它，任务就会被放到taskQueue中，等它来轮询；*/
     private final Queue<Runnable> taskQueue;
 
     private volatile Thread thread;
     @SuppressWarnings("unused")
     private volatile ThreadProperties threadProperties;
+    /** 在netty NioEventLoopGroup线程池中每一个线程NioEventLoop都可以被简单当成一个线程池来使用，只不过它只有一个线程；
+     *  Executor 实现类 ThreadPerTaskExecutor 简单逻辑：每来一个任务，则新建一个线程； */
     private final Executor executor;
     private volatile boolean interrupted;
 
     private final CountDownLatch threadLock = new CountDownLatch(1);
     private final Set<Runnable> shutdownHooks = new LinkedHashSet<Runnable>();
     private final boolean addTaskWakesUp;
+
+    /** 执行任务等待的最大数：此值默认最少值是16，最大值是Integer.MAX_VALUE；<br>
+     *  开发可通过Key（io.netty.eventexecutor.maxPendingTasks）设置，此值的有效设置必须满足：value>16 */
     private final int maxPendingTasks;
+    /** taskQueue的默认容量，因此，若submit的任务堆积数超过了16，再往里提交任务则会触发RejectedExecutionHandler的拒绝策略 */
     private final RejectedExecutionHandler rejectedExecutionHandler;
 
     private long lastExecutionTime;
@@ -166,9 +174,13 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
                                         RejectedExecutionHandler rejectedHandler) {
         super(parent);
         this.addTaskWakesUp = addTaskWakesUp;
+        // 执行任务等待的最大数：默认最少值是16
         this.maxPendingTasks = DEFAULT_MAX_PENDING_EXECUTOR_TASKS;
+        // 在netty NioEventLoopGroup线程池中每一个线程NioEventLoop都可以被简单当成一个线程池来使用，只不过它只有一个线程；
         this.executor = ThreadExecutorMap.apply(executor, this);
+        // 提交给NioEventLoop的任务都会进入到taskQueue队列中等待被执行；
         this.taskQueue = ObjectUtil.checkNotNull(taskQueue, "taskQueue");
+        // 拒绝策略
         this.rejectedExecutionHandler = ObjectUtil.checkNotNull(rejectedHandler, "rejectedHandler");
     }
 
@@ -475,7 +487,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
 
             // Check timeout every 64 tasks because nanoTime() is relatively expensive.
             // XXX: Hard-coded value - will make it configurable if it is really a problem.
-            /** Netty不允许在I/O线程中执行阻塞任务，因为阻塞任务将会阻塞住Netty中的事件循环，从而造成事件堆积的现象 */
+            /** Netty不建议在I/O线程中执行阻塞任务，因为阻塞任务将会阻塞住Netty中的事件循环，从而造成事件堆积的现象 */
             if ((runTasks & 0x3F) == 0) {
                 lastExecutionTime = ScheduledFutureTask.nanoTime();
                 if (lastExecutionTime >= deadline) {
@@ -825,9 +837,15 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
     }
 
     private void execute(Runnable task, boolean immediate) {
+        // 检查当前提交任务的线程是否是当前EventLoop中的线程（thread == this.thread）
         boolean inEventLoop = inEventLoop();
+        // 将任务提交至taskQueue（LinkedBlockingQueue<Runnable>(maxPendingTasks)）中；
+        // 若超出最大值（默认为Integer.MAX_VALUE，最少值是16），则根据默认的策略抛出异常；
         addTask(task);
+        // 若不是EventLoop中的内部线程提交的task，那么则检查内部线程是否启动，若未启动则启动内部线程（Java Thread）
         if (!inEventLoop) {
+            // 线程状态未启动，则通过CAS操作将状态改为启动，确保在并发中只有一个的线程操作成功，
+            // CAS=true则通过ThreadPerTaskExecutor#execute方法创建一个线程并将它设置为EventLoop的内部线程
             startThread();
             if (isShutdown()) {
                 boolean reject = false;
@@ -976,9 +994,17 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
 
     private void doStartThread() {
         assert thread == null;
+        /*****
+         * ThreadPerTaskExecutor的实例（也可简单的理解为线程池）就是每次提交一个任务，则新建一个线程的Executor；
+         * 源码阅读 {@link ThreadPerTaskExecutor#execute(Runnable)
+         *      创建一个新的线程（Java Thread），NioEventLoop线程的Java内部线程就是在此处创建的线程实例；
+         * }
+         *
+         */
         executor.execute(new Runnable() {
             @Override
             public void run() {
+                // 将在"executor"中新创建的线程设置为NioEventLoop的内部线程；
                 thread = Thread.currentThread();
                 if (interrupted) {
                     thread.interrupt();
@@ -987,6 +1013,8 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
                 boolean success = false;
                 updateLastExecutionTime();
                 try {
+                    // 执行NioEventLoop#run() 方法；参考 JDK 线程池的Worker功能，不断的轮询获取新的任务；
+                    // 它需要不断地做 select 操作和轮询 taskQueue 队列；
                     SingleThreadEventExecutor.this.run();
                     success = true;
                 } catch (Throwable t) {

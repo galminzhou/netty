@@ -29,6 +29,10 @@ public interface EventExecutorChooserFactory {
     EventExecutorChooser newChooser(EventExecutor[] executors);
 
     /**
+     * 设置chooserFactory，用来实现从线程池中选择一个线程的选择策略：
+     * 1) 若线程池的数量是2^N，则使用'&（与运算）'的方式：【atomicInteger.getAndIncrement() & children.length -1 】获得index
+     * 2) 若不是，则使用'取模'的方式：【Math.abs(atomicInteger.getAndIncrement() % children.length)】获得index
+     *
      * Chooses the next {@link EventExecutor} to use.
      */
     @UnstableApi

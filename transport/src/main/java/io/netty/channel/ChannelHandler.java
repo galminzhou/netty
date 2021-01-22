@@ -29,7 +29,7 @@ import java.lang.annotation.Target;
  * [SSSSS-核心类]
  *
  * Netty的扩展接口，也是开发实现服务器通讯协议和业务功能的地方；
- * Channel有两种类型：处理输入事件的ChannelInboundHandler和处理输出事件的ChannelOutboundHandler。
+ * Channel有两种类型：处理输入事件的ChannelInboundHandler和处理输出操作的ChannelOutboundHandler。
  *
  * 自定义的ChannelHandler要实现两个接口中的任意一个或全部；
  * 当开发向ChannelPipeline注册一个自定义的ChannelHandler时，ChannelPipeline会创建一个相应的ChannelHandlerContent实例，

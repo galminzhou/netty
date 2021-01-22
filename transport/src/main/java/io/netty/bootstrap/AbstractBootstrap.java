@@ -20,15 +20,22 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.DefaultChannelPromise;
 import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ReflectiveChannelFactory;
+import io.netty.channel.nio.AbstractNioChannel;
+import io.netty.channel.nio.NioEventLoop;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.EventExecutor;
+import io.netty.util.concurrent.EventExecutorChooserFactory;
 import io.netty.util.concurrent.GlobalEventExecutor;
+import io.netty.util.concurrent.SingleThreadEventExecutor;
 import io.netty.util.internal.ObjectUtil;
 import io.netty.util.internal.SocketUtils;
 import io.netty.util.internal.StringUtil;
@@ -42,6 +49,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 
 /**
  * {@link AbstractBootstrap} is a helper class that makes it easy to bootstrap a {@link Channel}. It support
@@ -271,7 +279,16 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return doBind(ObjectUtil.checkNotNull(localAddress, "localAddress"));
     }
 
+    /********
+     * [SSS-操作入口：bind] ServerBootstrap - ServerSocketChannel - bind(...)
+     * 执行pipeline - bind 
+     * 源码解读 {@link io.netty.channel.DefaultChannelPipeline#bind(SocketAddress, ChannelPromise)
+     *      a) 因bind操作是Outbound类型，所有从tail-head，执行bind操作；
+     *      b) 最后有head的bind操作，调用AbstractUnsafe#bind，进行JDK 底层的SocketChannel#bind操作；
+     * }
+     */
     private ChannelFuture doBind(final SocketAddress localAddress) {
+        // 已完成 register 操作，若异常不是Null，则返回错误；
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();
         if (regFuture.cause() != null) {
@@ -279,6 +296,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         }
 
         if (regFuture.isDone()) {
+            // register 注册动作已经完成并成功，则执行bind操作
             // At this point we know that the registration was complete and successful.
             ChannelPromise promise = channel.newPromise();
             doBind0(regFuture, channel, localAddress, promise);
@@ -310,7 +328,33 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     final ChannelFuture initAndRegister() {
         Channel channel = null;
         try {
+            /*********
+             * 构造Channel实例，同时也会构造ChannelPipeline实例（head + tail实例也将创建出来，并且连接起来）；
+             * 源码解读：{@link NioSocketChannel#NioSocketChannel() tcp-client 默认构造器
+             *      1) 绑定Java JDK的SocketChannel实例；
+             *      2) 创建Unsafe(NioSocketChannelUnsafe)，ChannelPipeline，NioSocketChannelConfig实例等；
+             *      3) 设置channel非阻塞模式，客户端：SelectionKey.OP_READ 事件（等待读服务端返回数据）；
+             * }
+             * 源码解读：{@link NioServerSocketChannel#NioServerSocketChannel() tcp-server 默认构造器
+             *      1) 绑定Java JDK的ServerSocketChannel实例；
+             *      2) 创建Unsafe(NioMessageUnsafe)，ChannelPipeline，NioServerSocketChannelConfig实例等；
+             *      3) 设置channel非阻塞模式，服务端：SelectionKey.OP_ACCEPT 事件（接收连接继续事件）
+             * }
+             * 源码解读：{@link io.netty.channel.DefaultChannelPipeline#DefaultChannelPipeline(Channel)
+             *      1) 创建Channel双向链表结构的Tail（ChannelInboundHandler）节点；
+             *      2) 创建Channel双向链表结构的Head（ChannelInboundHandler，ChannelOutboundHandler）节点；
+             *      3) 连接起来 Head + Tail（head.text = tail, tail.prev = head）；
+             * }
+             */
             channel = channelFactory.newChannel();
+            /*********
+             * 源码解读：{@link Bootstrap#init(Channel) 客户端
+             *      1）向pipeline中添加handler（head + tail）；
+             * }
+             * 源码解读：{@link ServerBootstrap#init(Channel) 服务端
+             *      1）向pipeline中添加handler以及一个ChannelInitializer实例（head + channelInitializer + tail）；
+             * }
+             */
             init(channel);
         } catch (Throwable t) {
             if (channel != null) {
@@ -323,11 +367,74 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             return new DefaultChannelPromise(new FailedChannel(), GlobalEventExecutor.INSTANCE).setFailure(t);
         }
 
+        /*********
+         * 1) 获得NioEventLoopGroup实例；
+         * 2) 创建一个ChannelPromise实例，关联Channel，Channel持有Unsafe实例，
+         *    通过调用 Unsafe#register(...)方法完成绑定一个线程NioEventLoop实例；
+         *    源码解读 {@link io.netty.channel.AbstractChannel#register(Channel)
+         *         a) 根据ChooseFactory设置的策略，选择线程池中的一个线程（NioEventLoop实例；
+         *            源码解读：参考 {@link io.netty.util.concurrent.MultithreadEventExecutorGroup#MultithreadEventExecutorGroup(int, Executor, EventExecutorChooserFactory, Object...)}
+         *         b) 通过NioEventLoop实例调用register(channel)设置提交任务的异步操作；
+         *            源码解读：{@link io.netty.channel.SingleThreadEventLoop#register(Channel)
+         *                  ChannelPromise 关联Channel，Channel 持有 Unsafe的实例，register的操作封装在Unsafe中，因此：
+         *                  源码解读 {@link io.netty.channel.AbstractChannel.AbstractUnsafe#register(EventLoop, ChannelPromise)
+         *                       1⃣) Channel绑定一个NioEventLoop的实例，但是一个NioEventLoop实例可能会被多个Channel绑定；
+         *                       2⃣) 此后Channel提交的任务由NioEventLoop调度（即 Executor.execute(Runnable)）异步操作；
+         *                  }
+         *            }
+         *    }
+         * 3) 提交task给EventLoop，由eventLoop中的线程（NioEventLoop#execute(Runnable)）负责调用register0(promise)
+         *    源码解读 {@link io.netty.util.concurrent.SingleThreadEventExecutor#execute(Runnable)
+         *         a) 检查execute任务的线程是不是NioEventLoop的内部线程；
+         *         b) 将task提交到taskQueue（LinkedBlockingQueue<Runnable>(maxPendingTasks)）
+         *         c) 若不是NioEventLoop的内部线程，则通过持有executor（ThreadPerTaskExecutor）实例创建一个新的线程；
+         *         d) 将新创建的线程绑定到NioEventLoop的内部线程，执行eventLoop#run() 不断地循环获取新的任务；
+         *    }
+         * 4) EventLoop#run() 功能与JDK线程池Worker那样，不断地做Selector#select操作和轮询taskQueue队列；
+         *    源码解读 {@link io.netty.channel.nio.NioEventLoop#run()
+         *         a) 校验taskQueue是否堆积任务，若不为空则执行一次Selector#selectNow()，非阻塞，即刻返回就绪事件数量一个或多个；
+         *         b) 若为空，则根据selectStrategy的结果集（即SelectStrategy.SELECT），
+         *            进入SelectStrategy.SELECT条件分支，执行Selector#select(timeoutMillis)，
+         *            即selectNow()的阻塞超时方法，有事件立即返回，否则阻塞到timeoutMillis时间；
+         *         c) 根据eventLoop#ioRatio控制的时间比重："[0 ~ 100)"，
+         *            若是100%，则先执行IO操作，然后再执行taskQueue队列中的任务；
+         *            若不是100，那么先执行IO操作，然后再执行taskQueue队列中的任务，但是必须控制执行taskQueue任务的总时间；
+         *            非IO操作的时间根据IO耗时和ioRatio比例计算（ioTime * (100 - ioRatio) / ioRatio）的结果获得；
+         *
+         *            源码解读 - 执行IO操作{@link NioEventLoop#processSelectedKeys()
+         *            }
+         *            源码解读 - 执行taskQueue队列中的任务{@link NioEventLoop#runAllTasks()
+         *            }
+         *            源码解读 - 执行taskQueue队列中的任务，但控制任务的总时间{@link NioEventLoop#runAllTasks(long)
+         *            }
+         *    }
+         * 5) NioEventLoop线程轮询taskQueue队列，执行register任务
+         *    源码解读 {@link io.netty.channel.AbstractChannel.AbstractUnsafe#register0(ChannelPromise)
+         *         a) 执行真正的注册操作：将JDK底层的Channel 注册到 Selector，交由子类实现；
+         *            源码解读 {@link AbstractNioChannel#doRegister() JDK register操作
+         *                 将Java JDK SocketChannel(or ServerSocketChannel)注册到Selector（多路复用器）中，
+         *                 但是在此处的监听集合设置是：0，也就是意味着什么都不监听（也就表示后续会有地方修改selectionKey的监听集合）；
+         *            }
+         *         b) 通过pipeline关联的Channel，然后在使用channel获取NioEventLoop实例，检测NioEventLoop线程是否启动；
+         *            然后由 pipeline#execute 触发：ChannelHandler#handlerAdded方法；
+         *            源码解读 {@link io.netty.channel.ChannelInitializer#initChannel(ChannelHandlerContext)
+         *            }
+         *    }
+         * 6) 从pipeline 链表的Head开始至Tail结束，依次往下寻找所有的inbound handler，执行其 channelRegistered(ctx)操作；
+         *    源码解读 {@link io.netty.channel.AbstractChannelHandlerContext#invokeChannelRegistered()
+         *         1) 通过pipeline.fireChannelRegistered() 将 channelRegistered事件抛到pipeline中，pipeline的handlers准备处理此事件；
+         *         2) 然后在一个handler处理完成之后，通过 context.fireChannelRegistered() 向后传播给下一个 handler；
+         *    }
+         */
         ChannelFuture regFuture = config().group().register(channel);
+
+        // 执行 register 出现错误
         if (regFuture.cause() != null) {
+            // 关闭channel
             if (channel.isRegistered()) {
                 channel.close();
             } else {
+                // 立即关闭channel，并且不触发任何事件
                 channel.unsafe().closeForcibly();
             }
         }
@@ -340,7 +447,13 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         //    i.e. It's safe to attempt bind() or connect() now:
         //         because bind() or connect() will be executed *after* the scheduled registration task is executed
         //         because register(), bind(), and connect() are all bound to the same thread.
-
+        /*******
+         * 此处表示已可进行 bind() or connect()，以下情况说明：
+         * 1) 假如 register 动作是在 eventLoop 中发起的，那么在到达此处代码的时候 register 一定已经完成；
+         * 2) 假如 register 任务已提交到 eventLoop中（即已提交到 eventLoop中的taskQueue中），
+         *    由于后续的 bind or connect 也一定会进入到同一个 eventLoop 的 queue中，
+         *    因此一定是先执行 register成功，才会执行 bind() or connect() 操作；
+         */
         return regFuture;
     }
 

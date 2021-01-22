@@ -26,6 +26,11 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
+ * ChannelPipeline 的辅助类，是一个handler（Inbound类型），
+ * 但是此类的作用与普通Handler有点不一样，ChannelInitializer纯粹是用来辅助其它的handler加入到pipeline中；
+ *
+ * head（outbound + inbound） + channelInitializer（inbound） + tail（inbound）
+ *
  * A special {@link ChannelInboundHandler} which offers an easy way to initialize a {@link Channel} once it was
  * registered to its {@link EventLoop}.
  *
@@ -126,12 +131,14 @@ public abstract class ChannelInitializer<C extends Channel> extends ChannelInbou
     private boolean initChannel(ChannelHandlerContext ctx) throws Exception {
         if (initMap.add(ctx)) { // Guard against re-entrance.
             try {
+                // 将 Channel（继承Channel的实例 or 自定义的handlers）添加至Pipeline中；
                 initChannel((C) ctx.channel());
             } catch (Throwable cause) {
                 // Explicitly call exceptionCaught(...) as we removed the handler before calling initChannel(...).
                 // We do so to prevent multiple calls to initChannel(...).
                 exceptionCaught(ctx, cause);
             } finally {
+                // 将 ChannelInitializer 重 pipeline的链表中移除出去；
                 ChannelPipeline pipeline = ctx.pipeline();
                 if (pipeline.context(this) != null) {
                     pipeline.remove(this);

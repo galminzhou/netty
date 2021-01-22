@@ -76,8 +76,11 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
      */
     protected AbstractChannel(Channel parent) {
         this.parent = parent;
+        // 每一个 channel 分配一个唯一 ID；
         id = newId();
+        // 每一个 channel 内部需要一个 ChannelUnsafe 实例；
         unsafe = newUnsafe(); // 在Abstract中没有实现此方法，钩子方法由子类实现
+        // 每一个 channel 内部都会创建一个 ChannelPipeline 实例；
         pipeline = newChannelPipeline(); // 默认的DefaultChannelPipeline实例
     }
 
@@ -418,6 +421,11 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     }
 
     /**
+     * 此类的参考{@link sun.misc.Unsafe JDK的魔法类}设计方式，
+     * 即在Netty的Unsafe类中它封装了Java JDK提供的NIO接口（示例：
+     * 如将 channel 注册到 selector 上，比如 bind 操作，比如 connect 操作等），此类操作都是稍微偏底层实现；
+     * 可理解为Netty同样也是不希望开发人员的业务代码直接使用 Unsafe 的实例的方法，它是提供给 Netty 中的源码使用的；
+     *
      * {@link Unsafe} implementation which sub-classes must extend and use.
      */
     protected abstract class AbstractUnsafe implements Unsafe {
@@ -493,6 +501,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             } else {
                 try {
                     // 提交task给EventLoop，由eventLoop中的线程负责调用 register0(promise)；
+                    /** {@link io.netty.util.concurrent.SingleThreadEventExecutor#execute(Runnable)} */
                     eventLoop.execute(new Runnable() {
                         @Override
                         public void run() {
@@ -520,7 +529,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                     return;
                 }
                 boolean firstRegistration = neverRegistered;
-                // 执行真正的register操作，交由子类实现；
+                // 执行真正的register操作：Channel 注册到 Selector，交由子类实现；
                 doRegister();
                 // Channel已注册，设置false
                 neverRegistered = false;
@@ -535,6 +544,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 /** 标记promise成功，若promise已完成则记录一条消息*/
                 safeSetSuccess(promise);
                 /** register-注册，触发 {@link ChannelInboundHandler#channelRegistered(ChannelHandlerContext)} 事件 */
+                // 将channelRegistered 事件抛到pipeline中，pipeline中的handler准备处理此事件（从 head -> tail 结束）
                 pipeline.fireChannelRegistered();
                 // Only fire a channelActive if the channel has never been registered. This prevents firing
                 // multiple channel actives if the channel is deregistered and re-registered.
@@ -549,6 +559,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                         //
                         // See https://github.com/netty/netty/issues/4805
                         // 对于底层NIO-Channel，增加关注OP_READ的事件；
+                        /** channel已注册过，则直接监听channel中：OP_READ事件（tcp-client）或 OP_ACCEPT（tcp-socket）*/
                         beginRead();
                     }
                 }

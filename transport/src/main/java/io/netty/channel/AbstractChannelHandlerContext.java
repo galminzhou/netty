@@ -142,6 +142,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
 
     @Override
     public ChannelHandlerContext fireChannelRegistered() {
+        // findContextInbound(MASK_CHANNEL_REGISTERED): 在pipeline的链表中寻找下一个Inbound类型的handler；
         invokeChannelRegistered(findContextInbound(MASK_CHANNEL_REGISTERED));
         return this;
     }
@@ -151,6 +152,7 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
         if (executor.inEventLoop()) {
             next.invokeChannelRegistered();
         } else {
+            // 若NioEventLoop的线程没有启动，则调用execute启动一个Java线程；
             executor.execute(new Runnable() {
                 @Override
                 public void run() {
@@ -163,6 +165,8 @@ abstract class AbstractChannelHandlerContext implements ChannelHandlerContext, R
     private void invokeChannelRegistered() {
         if (invokeHandler()) {
             try {
+                // handler() - 返回 pipeline的 head；
+                /** {@link io.netty.channel.DefaultChannelPipeline.HeadContext#channelRegistered(ChannelHandlerContext)} */
                 ((ChannelInboundHandler) handler()).channelRegistered(this);
             } catch (Throwable t) {
                 invokeExceptionCaught(t);

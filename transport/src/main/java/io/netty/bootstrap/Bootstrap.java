@@ -22,6 +22,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoop;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.resolver.AddressResolver;
 import io.netty.resolver.DefaultAddressResolverGroup;
@@ -155,6 +156,7 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
     }
 
     /**
+     * [SSS-操作入口：connect] Bootstrap - SocketChannel - connect
      * 实例化Channel的实现类的实例（Java reflect）
      *  TCP-Client {@link NioSocketChannel#NioSocketChannel()
      *      创建Netty的NioSocketChannel实例时，首先实例化JDK NIO的SocketChannel实例；
@@ -168,6 +170,7 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
     private ChannelFuture doResolveAndConnect(final SocketAddress remoteAddress, final SocketAddress localAddress) {
         // 绑定一个JDK NIO的SocketChannel实例并通过NioSocketChannelConfig实例保存信息；
         // 绑定一个netty ChannelPipeline，设置NIO SelectionKey#OP_READ事件 和 Channel非阻塞模式；
+        // 在 register 操作，从 head -> tail 至 handlers 的 inbound事件 处理完成了；
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();
 
@@ -175,6 +178,19 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
             if (!regFuture.isSuccess()) {
                 return regFuture;
             }
+            /*****************
+             * 解析指定的地址，然后通过eventLoop建立连接，交由pipeline执行connect操作，
+             * 源码解读 {@link io.netty.channel.DefaultChannelPipeline#connect(SocketAddress, SocketAddress, ChannelPromise)
+             *      1) 在pipeline中，从 tail -> head结束，执行 pipeline 上 outbound类型的handlers的connect(...)方法;
+             *      2) 最后由head（InboundHandler + OutboundHandler）执行connect，它会负责调用unsafe提供的connect方法
+             * }
+             * 建立TCP连接，NioEventLoop#run 开始处理channel的后续操作了；
+             * 源码解读 {@link io.netty.channel.nio.AbstractNioChannel.AbstractNioUnsafe#connect(SocketAddress, SocketAddress, ChannelPromise)
+             *      1) 调用JDK底层的connect建立连接，设置interestOps 为 SelectionKey.OP_CONNECT，开始监听TCP连接；
+             *         连接成功之后，后续操作：由 {@link NioEventLoop#run()}中的processSelectedKeys() 方法处理：
+             *      2) 若建立连接超时，则进行失败处理；
+             * }
+             */
             return doResolveAndConnect0(channel, remoteAddress, localAddress, channel.newPromise());
         } else {
             // Registration future is almost always fulfilled already, but just in case it's not.
