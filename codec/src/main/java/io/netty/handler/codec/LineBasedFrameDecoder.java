@@ -22,7 +22,11 @@ import io.netty.util.ByteProcessor;
 import java.util.List;
 
 /**
- * 接收ByteBuf以分割线结束，如"\n"和"\r\n"
+ * [SSS-TCP粘包和拆包]
+ * 通过分隔符进行粘包和拆包问题的处理，Netty提供了两个编解码的类，LineBasedFrameDecoder 和 DelimiterBasedFrameDecoder；
+ * LineBasedFrameDecoder 的作用主要是通过换行符，即 '\n' or '\r\n' 对数据进行处理；
+ * 此类是解码器类，而对于数据的编码工作，也即在每个数据包添加换行符的部分需要开发人员自行进行处理；
+ *
  *
  * A decoder that splits the received {@link ByteBuf}s on line endings.
  * <p>
@@ -38,9 +42,12 @@ import java.util.List;
 public class LineBasedFrameDecoder extends ByteToMessageDecoder {
 
     /** Maximum length of a frame we're willing to decode.  */
+    /** 最大帧的长度，若超过此长度，此次数据将被抛弃 */
     private final int maxLength;
     /** Whether or not to throw an exception as soon as we exceed maxLength. */
+    /** 是否快速失败，即超过最大长度即刻抛出异常 */
     private final boolean failFast;
+    /** 是否已存在分隔符，例如：ABC\r\n */
     private final boolean stripDelimiter;
 
     /** True if we're discarding input because we're already over maxLength.  */
@@ -90,6 +97,8 @@ public class LineBasedFrameDecoder extends ByteToMessageDecoder {
     }
 
     /**
+     * 通过换行符切分字段数据
+     *
      * Create a frame out of the {@link ByteBuf} and return it.
      *
      * @param   ctx             the {@link ChannelHandlerContext} which this {@link ByteToMessageDecoder} belongs to

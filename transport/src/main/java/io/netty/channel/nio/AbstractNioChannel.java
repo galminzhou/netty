@@ -92,14 +92,13 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         // 保存 tcp-client SelectionKey.OP_READ or tcp-server SelectionKey.OP_ACCEPT
         this.readInterestOp = readInterestOp;
         try {
-            // 设置channel非阻塞模式
+            // 设置channel非阻塞模式，只有非阻塞模式，才能将Channel注册到Selector（多路复用器）上
             ch.configureBlocking(false);
         } catch (IOException e) {
             try {
                 ch.close();
             } catch (IOException e2) {
-                logger.warn(
-                            "Failed to close a partially initialized socket.", e2);
+                logger.warn("Failed to close a partially initialized socket.", e2);
             }
 
             throw new ChannelException("Failed to enter non-blocking mode.", e);

@@ -23,7 +23,14 @@ import io.netty.channel.ChannelHandlerContext;
 import java.util.List;
 
 /**
- * 提取固定长度
+ * [SSS-TCP粘包和拆包]
+ * 解码器会每次读取固定长度的消息，
+ * 如果当前读取到的消息不足指定长度，那么就会等待下一个消息到达后进行补足。
+ * 其使用也比较简单，只需要在构造函数{@link this#FixedLengthFrameDecoder(int)}中指定每个消息的长度即可。
+ *
+ * 注意：
+ * FixedLengthFrameDecoder是解码器，Netty也只提供了一个解码器，是因为对于解码是需要等待下一个包的进行补全的，代码相对复杂；
+ * 而对于编码器，开发人员可自行编写，因为编码时只需要将不足指定长度的部分进行补全即可。
  *
  * A decoder that splits the received {@link ByteBuf}s by the fixed number
  * of bytes. For example, if you received the following four fragmented packets:

@@ -24,7 +24,10 @@ import io.netty.util.internal.ObjectUtil;
 import java.util.List;
 
 /**
- * 接收ByteBuf由一个或多个分隔符拆分，如NUL或换行符
+ * [SSS-TCP粘包和拆包]
+ * 通过分隔符进行粘包和拆包问题的处理，Netty提供了两个编解码的类，LineBasedFrameDecoder 和 DelimiterBasedFrameDecoder；
+ * DelimiterBasedFrameDecoder 的作用主要是通过开发人员指定的分隔符（由一个或多个分隔符拆分，如NUL或换行符）对数据进行粘包和拆包处理；
+ * 此类是解码器类，而对于数据的编码工作，也即在每个数据包添加指定的分隔符的部分需要开发人员自行进行处理；
  *
  * A decoder that splits the received {@link ByteBuf}s by one or more
  * delimiters.  It is particularly useful for decoding the frames which ends

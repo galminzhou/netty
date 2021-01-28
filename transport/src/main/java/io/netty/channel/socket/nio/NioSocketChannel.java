@@ -54,8 +54,9 @@ import static io.netty.channel.internal.ChannelUtils.MAX_BYTES_PER_GATHERING_WRI
 /**
  * 在Channel三层结构中是第三层即实现层：实现了 TCP-Client；
  * 在Netty中 NioSocketChannel 与 JKD的{@link SocketChannel} 是一对一的关系；
+ * SocketChannel: 它不仅仅是 TCP 客户端，还是一个网络通道，可读可写。
  * 问题：NioSocketChannel 如何与 JDK的SocketChannel关联在一起？
- *
+ *      AbstractNioChannel
  *
  *
  * {@link io.netty.channel.socket.SocketChannel} which uses NIO selector based implementation.

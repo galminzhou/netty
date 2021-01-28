@@ -50,6 +50,10 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
+ * NioEventLoop 几个最重要的成员属性：
+ * 1) Java Thread线程类；
+ * 2) Java NIO Selector（选择器 or 多路复用器）；
+ * 3) Java 线程的任务队列（Queue<Runnable>）；
  * {@link SingleThreadEventLoop} implementation which register the {@link Channel}'s to a
  * {@link Selector} and so does the multi-plexing of these in the event loop.
  *
@@ -468,6 +472,15 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                      *      若返回值>0，则表示存在一个或多个事件就绪；
                      * 若为false，则返回SelectStrategy.SELECT的值，即进入SelectStrategy.SELECT分支
                      *      执行select(timeoutMillis)，即selectNow()的阻塞超时方法，有事件立即返回，否则阻塞到timeoutMillis时间；
+                     *
+                     * ---------------------
+                     * select():
+                     *      调用此方法，会将上次 select 之后的准备好的 channel 对应的 SelectionKey 复制到 selected set 中；
+                     *      如果没有任何通道准备就绪，此方法会阻塞，直到至少有一个通道准备就绪；
+                     * wakeup():
+                     *      此方法是用来唤醒等待在 select() 和 select(timeout) 上的线程的。
+                     *      若 wakeup() 先被调用，此时没有线程在 select 上阻塞，
+                     *      那么之后的一个 select() 或 select(timeout) 会立即返回，而不会阻塞，当然，它只会作用一次。
                      */
                     strategy = selectStrategy.calculateStrategy(selectNowSupplier, hasTasks());
                     switch (strategy) {
@@ -761,6 +774,23 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
     }
 
+    /******
+     * NIO SelectionKey 四种事件（使用二进制的标记位）：
+     *  1) {@link java.nio.channels.SelectionKey#OP_ACCEPT 服务端关注此类型的事件，例如：netty ioServerSocketChannel
+     *         接收连接继续事件，表示服务端监听到了客户端的连接，服务端可以接收此连接了；
+     *     }
+     *  2) {@link java.nio.channels.SelectionKey#OP_CONNECT
+     *         连接就绪事件，表示客户端与服务端的连接已经建立成功；
+     *     }
+     *  3) {@link java.nio.channels.SelectionKey#OP_READ 客户端关注此类型事件，例如：netty NioSocketChannel
+     *         读就绪事件，表示通道中已经有了可读的数据，可以执行读操作了；
+     *         当向通道中注册SelectionKey.OP_READ事件后，若客户端有向缓存中write数据，下次轮询时，则 isReadable()=true；
+     *     }
+     *  4) {@link java.nio.channels.SelectionKey#OP_WRITE
+     *         写就绪事件，表示已经可以向通道写数据了；
+     *         当向通道中注册SelectionKey.OP_WRITE事件后，则当前轮询线程中isWritable()一直为ture，如果不设置为其他事件；
+     *     }
+     */
     private static void processSelectedKey(SelectionKey k, NioTask<SelectableChannel> task) {
         int state = 0;
         try {
